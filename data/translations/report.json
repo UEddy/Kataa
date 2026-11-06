@@ -1,0 +1,14 @@
+{
+ "fr": {
+  "items": 5,
+  "protected_lost": 0,
+  "back_overlap_median": 0.745,
+  "back_overlap_p10": 0.231,
+  "flagged_low_overlap": 1
+ },
+ "_usage": {
+  "requests": 2,
+  "prompt_tokens": 735,
+  "completion_tokens": 5285
+ }
+}
