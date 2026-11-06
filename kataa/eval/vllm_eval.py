@@ -30,6 +30,7 @@ def main() -> int:
     ap.add_argument("--max-tokens", type=int, default=512)
     ap.add_argument("--name", required=True)
     ap.add_argument("--model", default=BASE_MODEL, help="hub id or merged model dir")
+    ap.add_argument("--prompt", default="default", choices=["default", "prompted"])
     ap.add_argument("--out", required=True)
     ap.add_argument("--hub-path", required=True)
     args = ap.parse_args()
@@ -60,11 +61,13 @@ def main() -> int:
         return len(tok(render(conv), add_special_tokens=False)["input_ids"])
 
     t0 = time.time()
-    eps = run_episodes(generate, records, n_samples=args.samples,
+    from kataa.eval.prompts import PROMPTS
+
+    eps = run_episodes(generate, records, n_samples=args.samples, system_prompt=PROMPTS[args.prompt],
                        max_prompt_tokens=8192 - args.max_tokens, count_tokens=count_tokens)
     rows = score(eps)
     summary[name] = {**summarize(rows), "model": args.model, "split": args.split,
-                     "samples": args.samples, "temperature": args.temperature,
+                     "samples": args.samples, "temperature": args.temperature, "prompt": args.prompt,
                      "seconds": round(time.time() - t0, 1)}
     print(f"[eval] {name}: {json.dumps(summary[name])}", flush=True)
     with open(out / f"{name}.rows.jsonl", "w") as f:

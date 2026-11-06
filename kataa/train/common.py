@@ -8,7 +8,10 @@ BASE_MODEL = "CohereLabs/tiny-aya-global"
 
 
 def load_split(split: str, n: int | None = None) -> list[dict]:
-    rows = [json.loads(x) for x in (ROOT / "data" / "tasks" / f"{split}.jsonl").open()]
+    """A task split; heldout_<lang> comes from data/tasks_translated (kept out of data/tasks so
+    the tool registry's load_dir never sees the same loan_id twice)."""
+    folder = "tasks_translated" if split.startswith("heldout_") else "tasks"
+    rows = [json.loads(x) for x in (ROOT / "data" / folder / f"{split}.jsonl").open()]
     return rows[:n] if n else rows
 
 
