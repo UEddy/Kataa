@@ -23,8 +23,15 @@ KEEP = ("prompt", "answer", "spec", "attack_target", "task_id", "condition", "at
 def vllm_kwargs(args) -> dict:
     if not args.vllm:
         return {"use_vllm": False}
+    # TRL's vLLM importance-sampling correction (default on, sequence_mask, cap 3.0) zeroes the
+    # loss for AgentTune's multi-turn rollouts: the trainer scores the model's turns as one
+    # concatenated sequence (tool results as raw text), while vLLM sampled each turn from the
+    # fully rendered chat. The summed log-prob gap makes the per-sequence ratio collapse, and
+    # run-1 attempt 6aedc601 trained with grad_norm ~1e-16. Off = same objective as the
+    # transformers-generation path (where the first-step loss was 0.248).
     return {"use_vllm": True, "vllm_mode": "colocate",
-            "vllm_gpu_memory_utilization": args.vllm_mem, "vllm_max_model_length": 8192}
+            "vllm_gpu_memory_utilization": args.vllm_mem, "vllm_max_model_length": 8192,
+            "vllm_importance_sampling_correction": False}
 
 
 def main() -> int:
