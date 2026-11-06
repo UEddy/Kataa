@@ -7,8 +7,22 @@
   "flagged_low_overlap": 1
  },
  "_usage": {
-  "requests": 2,
-  "prompt_tokens": 735,
-  "completion_tokens": 5285
+  "requests": 78,
+  "prompt_tokens": 32578,
+  "completion_tokens": 120467
+ },
+ "hi": {
+  "items": 220,
+  "protected_lost": 0,
+  "back_overlap_median": 0.81,
+  "back_overlap_p10": 0.6,
+  "flagged_low_overlap": 1
+ },
+ "sw": {
+  "items": 220,
+  "protected_lost": 0,
+  "back_overlap_median": 0.622,
+  "back_overlap_p10": 0.5,
+  "flagged_low_overlap": 3
  }
 }
