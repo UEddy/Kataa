@@ -29,8 +29,31 @@ from kataa.eval.mistral_client import MistralClient  # noqa: E402
 LANGS = {"fr": "French", "hi": "Hindi", "sw": "Swahili", "yo": "Yoruba", "ha": "Hausa"}
 BATCH = 6
 PROTECT = re.compile(r"LN-[0-9A-F]{6}|\d{2} [A-Z][a-z]{2} \d{4}|\b[a-z]+_[a-z_]+\b|\d+(?:[.:]\d+)*")
+DATETIME = re.compile(r"\d{2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2} UTC|\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC")
+
+
+def mask(text: str) -> tuple[str, dict]:
+    """Replace determination times with [[D1]]-style placeholders: the translator localised month
+    names (25 May -> 25 mai), which hours_between cannot parse. Restored after translation, so the
+    times stay exactly as in the English task and only the language of the text changes."""
+    found = {}
+
+    def sub(m):
+        k = f"[[D{len(found) + 1}]]"
+        found[k] = m.group(0)
+        return k
+    return DATETIME.sub(sub, text), found
+
+
+def unmask(text: str, found: dict) -> str:
+    for k, v in found.items():
+        text = text.replace(k, v)
+    return text
+
+
 INSTRUCT = (
-    "Translate each string in the JSON array below into {lang}. Keep these exactly as written: "
+    "Translate each string in the JSON array below into {lang}. Keep placeholders such as [[D1]] "
+    "exactly as written. Also keep these exactly as written: "
     "loan IDs such as LN-1A2B3C, all numbers, dates and times (use Western digits), tool names "
     "written in snake_case, and markdown table structure (| and ---). Translate everything "
     "else naturally, including instructions, names of offices and titles. Reply with only a "
@@ -80,7 +103,8 @@ def overlap(a: str, b: str) -> float:
 
 
 SINGLE = (
-    "Translate the text between <text> tags into {lang}. Keep these exactly as written: loan IDs "
+    "Translate the text between <text> tags into {lang}. Keep placeholders such as [[D1]] exactly "
+    "as written. Also keep these exactly as written: loan IDs "
     "such as LN-1A2B3C, all numbers, dates and times (use Western digits), tool names written in "
     "snake_case, and markdown table structure. Reply with only the translation, no tags.\n\n"
     "<text>{text}</text>"
@@ -135,7 +159,9 @@ def main() -> int:
         with cache_path.open("a") as f:
             for i in range(0, len(todo), BATCH):
                 src = todo[i:i + BATCH]
-                fwd = call_batch(client, src, lang)
+                masked = [mask(x) for x in src]
+                fwd = [unmask(t, m) for t, (_, m) in
+                       zip(call_batch(client, [x for x, _ in masked], lang), masked)]
                 back = call_batch(client, fwd, "English")
                 for s, t, b in zip(src, fwd, back):
                     lost = sorted(set(PROTECT.findall(s)) - set(PROTECT.findall(t)))
