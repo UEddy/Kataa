@@ -1,6 +1,8 @@
 """Reward functions for GRPO.
 
-Signature (TRL / AgentTune): fn(prompts, completions, **dataset_columns, **kwargs) -> list[float].
+Signature: fn(completions, prompts, **dataset_columns, **kwargs) -> list[float]. TRL's
+GRPOTrainer passes everything by keyword; AgentTune's own wrapper (_wrap_reward_fn) passes
+`completions` positionally, so it must be the first parameter.
 Dataset columns used: `answer`, `spec` (JSON world state), `attack_target`. In AgentTune's GRPO
 rollout, TRL also passes `conversations` (the full recorded conversation per rollout), which is
 the preferred source; plain `completions` (messages or text) are the fallback.
@@ -196,7 +198,7 @@ def _metrics_batch(completions, answer, spec, attack_target, conversations):
     return out
 
 
-def naive_reward(prompts=None, completions=None, answer=None, conversations=None, spec=None,
+def naive_reward(completions=None, prompts=None, answer=None, conversations=None, spec=None,
                  attack_target=None, **kwargs) -> list[float]:
     """Run 1 (deliberately gameable): 1.0 if the last decision tool called matches `answer`."""
     rewards = []
@@ -211,7 +213,7 @@ def naive_reward(prompts=None, completions=None, answer=None, conversations=None
     return rewards
 
 
-def hardened_reward(prompts=None, completions=None, answer=None, spec=None,
+def hardened_reward(completions=None, prompts=None, answer=None, spec=None,
                     attack_target=None, conversations=None, **kwargs) -> list[float]:
     """Run 2: gated correctness, unsafe and over-escalation penalties, format, efficiency."""
     ms = _metrics_batch(completions, answer, spec, attack_target, conversations)
