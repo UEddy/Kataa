@@ -40,9 +40,11 @@ def text_of(message: dict) -> str:
 
 
 class MistralClient:
-    def __init__(self, model: str = MODEL, max_tokens: int = 2048, timeout: float = 180):
+    def __init__(self, model: str = MODEL, max_tokens: int = 2048, timeout: float = 300,
+                 reasoning_effort: str | None = None):
         self.model = model
         self.max_tokens = max_tokens
+        self.reasoning_effort = reasoning_effort  # Large 4 accepts low / medium / high
         self.http = httpx.Client(timeout=timeout,
                                  headers={"Authorization": "Bearer proxy-injected"})
         self.tokens_left: int | None = None
@@ -62,6 +64,8 @@ class MistralClient:
         est = sum(len(m.get("content") or "") for m in messages) // 3 + self.max_tokens // 2
         body = {"model": self.model, "messages": messages, "temperature": temperature,
                 "top_p": 1, "max_tokens": self.max_tokens}
+        if self.reasoning_effort:
+            body["reasoning_effort"] = self.reasoning_effort
         delay = 20.0
         for attempt in range(8):
             self._pace(est)

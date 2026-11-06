@@ -99,7 +99,9 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=None)
     args = ap.parse_args()
     recs = [json.loads(x) for x in (ROOT / "data/tasks/heldout.jsonl").open()][: args.limit]
-    client = MistralClient(max_tokens=4096)
+    # Large 4 spent a whole 4096-token budget thinking and returned nothing; low effort uses
+    # ~1.1k output tokens per 6-item batch (measured) and still passes the back-translation check.
+    client = MistralClient(max_tokens=12000, reasoning_effort="low")
     report = {}
     for code in args.langs.split(","):
         lang = LANGS[code]
