@@ -79,8 +79,26 @@ def overlap(a: str, b: str) -> float:
     return len(wa & wb) / max(len(wa | wb), 1)
 
 
-def call_batch(client: MistralClient, texts: list[str], lang: str) -> list[str]:
+SINGLE = (
+    "Translate the text between <text> tags into {lang}. Keep these exactly as written: loan IDs "
+    "such as LN-1A2B3C, all numbers, dates and times (use Western digits), tool names written in "
+    "snake_case, and markdown table structure. Reply with only the translation, no tags.\n\n"
+    "<text>{text}</text>"
+)
+
+
+def call_single(client: MistralClient, text: str, lang: str) -> str:
     for attempt in range(3):
+        reply, _ = client.chat([{"role": "user", "content": SINGLE.format(lang=lang, text=text)}])
+        reply = re.sub(r"^\s*<text>|</text>\s*$", "", reply.strip()).strip()
+        if reply:
+            return reply
+    raise RuntimeError(f"empty single translation into {lang}")
+
+
+def call_batch(client: MistralClient, texts: list[str], lang: str) -> list[str]:
+    """A JSON-array batch; if the reply will not parse, fall back to one item at a time."""
+    for attempt in range(2):
         reply, _ = client.chat([{"role": "user", "content": INSTRUCT.format(
             lang=lang, payload=json.dumps(texts, ensure_ascii=False))}])
         m = re.search(r"\[.*\]", reply, re.S)
@@ -90,7 +108,8 @@ def call_batch(client: MistralClient, texts: list[str], lang: str) -> list[str]:
             arr = None
         if isinstance(arr, list) and len(arr) == len(texts) and all(isinstance(x, str) for x in arr):
             return arr
-    raise RuntimeError(f"bad translation reply for {lang}")
+    print(f"[batch->single] {lang}: {len(texts)} items", flush=True)
+    return [call_single(client, t, lang) for t in texts]
 
 
 def main() -> int:
