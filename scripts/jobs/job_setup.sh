@@ -10,6 +10,12 @@ pip install -q uv
 mkdir -p /work && cd /work
 git clone -q https://github.com/Lexsi-Labs/AgentTune.git && git -C AgentTune checkout -q "$AGENTTUNE_REF"
 uv venv -q --python 3.12 /opt/v && export VIRTUAL_ENV=/opt/v PATH=/opt/v/bin:$PATH
-uv pip install -q torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cu128
-uv pip install -q -e /work/AgentTune
+if [ "${KATAA_VLLM:-0}" = "1" ]; then
+  # AgentTune's [vllm] extra with the vLLM version its pyproject says it resolved and tested
+  # (0.22.1; unpinned it now resolves 0.23.0). Default PyPI torch 2.11.0 (CUDA 13; driver 580).
+  uv pip install -q -e "/work/AgentTune[vllm]" "vllm==0.22.1"
+else
+  uv pip install -q torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cu128
+  uv pip install -q -e /work/AgentTune
+fi
 python -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available(), torch.cuda.get_device_name(0))"

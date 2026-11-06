@@ -10,7 +10,7 @@ import argparse
 import json
 import time
 
-from kataa.train.common import BASE_MODEL, load_split, precision_kwargs
+from kataa.train.common import BASE_MODEL, load_split, peak_mem, precision_kwargs
 from kataa.train.hub import push_folder, sync_callback
 from kataa.train.sft import build_distill_trainer
 
@@ -56,7 +56,8 @@ def main() -> int:
     tr.save_model(args.out)
     with open(f"{args.out}/log_history.json", "w") as f:
         json.dump(tr.state.log_history, f, indent=1)
-    print(f"[warmstart] done in {time.time() - t0:.0f}s, steps={tr.state.global_step}", flush=True)
+    print(f"[warmstart] done in {time.time() - t0:.0f}s, steps={tr.state.global_step}, "
+          f"{peak_mem()}", flush=True)
     push_folder(args.out, args.hub_path, f"{args.hub_path}: final adapter")
 
     if args.merge_to:  # GRPO starts from the merged warm-start model with a fresh LoRA

@@ -22,3 +22,11 @@ def precision_kwargs() -> dict:
     if torch.cuda.is_available():
         return {"bf16": False, "fp16": True}
     return {"bf16": False, "fp16": False, "use_cpu": True}
+
+
+def peak_mem() -> str:
+    import torch
+
+    if not torch.cuda.is_available():
+        return "peak GPU mem n/a"
+    return f"peak GPU mem {torch.cuda.max_memory_allocated() / 2**30:.1f} GiB"

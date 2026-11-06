@@ -13,11 +13,18 @@ import time
 from kataa.env import registry, tools
 from kataa.protocol import MAX_TOOL_TURNS, TOOL_RESULT_FORMAT, TOOLS_PROMPT
 from kataa.rewards import hardened_reward, naive_reward
-from kataa.train.common import load_split, precision_kwargs
+from kataa.train.common import load_split, peak_mem, precision_kwargs
 from kataa.train.hub import push_folder, sync_callback
 
 REWARDS = {"naive": naive_reward, "hardened": hardened_reward}
 KEEP = ("prompt", "answer", "spec", "attack_target", "task_id", "condition", "attack_family")
+
+
+def vllm_kwargs(args) -> dict:
+    if not args.vllm:
+        return {"use_vllm": False}
+    return {"use_vllm": True, "vllm_mode": "colocate",
+            "vllm_gpu_memory_utilization": args.vllm_mem, "vllm_max_model_length": 8192}
 
 
 def main() -> int:
@@ -37,6 +44,8 @@ def main() -> int:
     ap.add_argument("--beta", type=float, default=0.04)
     ap.add_argument("--temperature", type=float, default=0.9)
     ap.add_argument("--save-steps", type=int, default=20)
+    ap.add_argument("--vllm", action="store_true", help="colocated vLLM generation")
+    ap.add_argument("--vllm-mem", type=float, default=0.35)
     args = ap.parse_args()
 
     from datasets import Dataset
@@ -59,11 +68,12 @@ def main() -> int:
         temperature=args.temperature, warmup_steps=0, logging_steps=1,
         save_steps=args.save_steps, save_total_limit=2, gradient_checkpointing=True,
         max_steps_per_turn=MAX_TOOL_TURNS, tools_fallback_prompt=TOOLS_PROMPT,
-        tool_result_format=TOOL_RESULT_FORMAT, use_vllm=False, report_to="none",
+        tool_result_format=TOOL_RESULT_FORMAT, report_to="none",
         log_completions=False,
         peft_config=dict(r=16, lora_alpha=32, target_modules="all-linear",
                          task_type="CAUSAL_LM"),
         callbacks=[sync_callback(args.out, args.hub_path)],
+        **vllm_kwargs(args),
         **precision_kwargs(),
     )
     trainer.train()
@@ -71,7 +81,7 @@ def main() -> int:
     with open(f"{args.out}/log_history.json", "w") as f:
         json.dump(hist, f, indent=1)
     print(f"[grpo] {args.reward}: done in {time.time() - t0:.0f}s, "
-          f"steps={trainer.trainer.state.global_step}", flush=True)
+          f"steps={trainer.trainer.state.global_step}, {peak_mem()}", flush=True)
     push_folder(args.out, args.hub_path, f"{args.hub_path}: final")
     return 0
 
