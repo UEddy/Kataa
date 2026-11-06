@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs in: cloud session. Upload a snapshot of HEAD to the runs repo, then launch a job script.
-#   scripts/jobs/launch.sh <job-script> <flavor> <timeout> [--dry-run]
+#   [JOB_ENV="K=V K2=V2"] scripts/jobs/launch.sh <job-script> <flavor> <timeout> [--dry-run]
 # The HF token is passed only with `--secrets HF_TOKEN` (read from this shell's environment,
 # encrypted by HF Jobs); it is never written to the command line or a file.
 set -euo pipefail
@@ -14,6 +14,7 @@ hf upload "$RUNS" "/tmp/kataa-${SHA}.tar.gz" "code/${SHA}.tar.gz" --commit-messa
 echo "code snapshot: $RUNS/code/${SHA}.tar.gz"
 hf jobs run $EXTRA --detach --flavor "$FLAVOR" --timeout "$TIMEOUT" --name "kataa-$(basename "$SCRIPT" .sh)-${SHA}" \
   --secrets HF_TOKEN --env "KATAA_SHA=${SHA}" --env "KATAA_RUNS_REPO=${RUNS}" \
+  $(for kv in ${JOB_ENV:-}; do printf -- '--env %s ' "$kv"; done) \
   python:3.12 bash -c "pip install -q huggingface_hub && \
     hf download ${RUNS} code/${SHA}.tar.gz --local-dir /tmp/c >/dev/null && \
     mkdir -p /work/kataa && tar -xzf /tmp/c/code/${SHA}.tar.gz -C /work/kataa && \
