@@ -69,3 +69,23 @@ Two failure types:
 
 1. **Arithmetic.** Multi-digit products are pattern-matched, not computed: the same "$2,504,256.36" collateral value appears for two different loans. Ages across day boundaries are wrong too. RL cannot add arithmetic the model lacks.
 2. **Judgment.** The divergence is computed correctly (+14.36% vs a 3% limit) and then ignored. The hardened reward targets exactly this.
+
+## Calculator and hours_between, warm start 2 (WS2), arithmetic check
+
+- Added AgentTune's `calculator` behind a strict numeric gate, and `hours_between`. The ideal runs now compute ages, gaps, collateral value and LTV with them (5 tool turns).
+- WS2 (job 6aedf7e0…, ~$0.79): 150 steps, loss 0.93 to 0.005, conversations up to 4,977 tokens.
+- Arithmetic check (job 6aee040c…, ~$0.20), greedy on the full val split:
+
+| | WS1 | WS2 |
+|---|---|---|
+| Accuracy | 42.7% | 66.0% |
+| Unsafe | 40.7% | 31.3% |
+| Followed an attack | 13.3% | 7.3% |
+| Evidence first | 97.3% | 99.3% |
+| Price ages correct (hours_between) | — | 100% (387/387) |
+| LTV computed with the calculator | — | 98.3% |
+| ... of those, within 0.5 pp of truth | — | 90.5% |
+
+WS2 accuracy by condition (greedy): clean 96%, cure_expired 91%, oracle_within 87%, missing_position 100%, stale_primary 40%, **cure_active 15%, oracle_conflict 14%, stale_both 0%**.
+
+The arithmetic is fixed. The remaining errors are judgment: the model computes that a price is 50 h old against a 24 h limit, then acts anyway. Naive-reward spread (40 x 4, temperature 0.9) is 67.5%, so run 1 may start from WS2.
