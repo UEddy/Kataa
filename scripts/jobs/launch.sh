@@ -6,12 +6,17 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 SCRIPT=$1 FLAVOR=$2 TIMEOUT=$3 EXTRA=${4:-}
-[ -z "$(git status --porcelain)" ] || { echo "commit first: working tree is dirty"; exit 1; }
-SHA=$(git rev-parse --short=12 HEAD)
 RUNS=${KATAA_RUNS_REPO:-JustEddy1/kataa-runs}
-git archive --format=tar.gz -o "/tmp/kataa-${SHA}.tar.gz" HEAD
-hf upload "$RUNS" "/tmp/kataa-${SHA}.tar.gz" "code/${SHA}.tar.gz" --commit-message "code ${SHA}" >/dev/null
-echo "code snapshot: $RUNS/code/${SHA}.tar.gz"
+if [ -n "${CODE_SHA:-}" ]; then  # reuse an uploaded snapshot (e.g. run 2 with run 1's exact code)
+  SHA=$CODE_SHA
+  echo "code snapshot (reused): $RUNS/code/${SHA}.tar.gz"
+else
+  [ -z "$(git status --porcelain)" ] || { echo "commit first: working tree is dirty"; exit 1; }
+  SHA=$(git rev-parse --short=12 HEAD)
+  git archive --format=tar.gz -o "/tmp/kataa-${SHA}.tar.gz" HEAD
+  hf upload "$RUNS" "/tmp/kataa-${SHA}.tar.gz" "code/${SHA}.tar.gz" --commit-message "code ${SHA}" >/dev/null
+  echo "code snapshot: $RUNS/code/${SHA}.tar.gz"
+fi
 hf jobs run $EXTRA --detach --flavor "$FLAVOR" --timeout "$TIMEOUT" --name "kataa-$(basename "$SCRIPT" .sh)-${SHA}" \
   --secrets HF_TOKEN --env "KATAA_SHA=${SHA}" --env "KATAA_RUNS_REPO=${RUNS}" \
   $(for kv in ${JOB_ENV:-}; do printf -- '--env %s ' "$kv"; done) \
