@@ -1,0 +1,33 @@
+# Claude instructions live outside the repo; never commit them
+CLAUDE.md
+.claude/
+
+# Secrets
+.env
+.env.*
+*.token
+*token*.txt
+.hf_token
+.netrc
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Outputs and caches
+outputs/
+output/
+runs/
+checkpoints/
+wandb/
+.cache/
+hf_cache/
+data/raw/
+*.log
+.ipynb_checkpoints/
