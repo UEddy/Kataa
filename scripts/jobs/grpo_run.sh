@@ -16,7 +16,7 @@ trap push_logs EXIT
 cd /work/kataa && export PYTHONPATH=/work/kataa
 echo "run=$RUN reward=$REWARD start=$START" | tee /work/logs/config.log
 python -c "from huggingface_hub import snapshot_download as s; s('${KATAA_RUNS_REPO}', local_dir='/work/start', allow_patterns=['${START}/adapter*'])"
-python -m kataa.train.merge --adapter "/work/start/${START}" --out /work/start-merged 2>&1 | tee -a /work/logs/config.log
+python -m kataa.train.merge --adapter "/work/start/${START}" --out /work/start-merged  # this run's LoRA sits on top of this 2>&1 | tee -a /work/logs/config.log
 (time python -m kataa.train.grpo --model /work/start-merged --reward "$REWARD" --out /work/run \
    --hub-path "$OUT" --max-steps ${MAX_STEPS:-120} --batch 1 --grad-accum 8 --num-generations 4 \
    --lr 1e-5 --beta 0.04 --temperature 0.9 --max-completion-length 512 --save-steps 20 \
