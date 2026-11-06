@@ -84,7 +84,7 @@ def to_eventlog(conversation: list[dict]):
     return log
 
 
-def assistant_mask_row(tok, conversation: list[dict], max_length: int = 4096) -> dict:
+def assistant_mask_row(tok, conversation: list[dict], max_length: int = 5120) -> dict:
     """Tokenize a whole conversation once; mark the tokens of each assistant turn (from the end
     of the generation prompt through the end-of-turn marker), as generated at rollout time."""
     full = tok.apply_chat_template(conversation, tokenize=False)
@@ -110,7 +110,7 @@ class KataaSFTFactory:
     """`trainer_factory` for create_distill_trainer: TRL SFTTrainer + LoRA on per-turn rows."""
 
     def __init__(self, conversations: list[list[dict]], lora: dict | None = None,
-                 dtype: Any = None, max_length: int = 4096):
+                 dtype: Any = None, max_length: int = 5120):
         self.conversations = conversations
         self.max_length = max_length
         self.lora = dict(lora or LORA)

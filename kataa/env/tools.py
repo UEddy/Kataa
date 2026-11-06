@@ -8,7 +8,10 @@ determination time (and therefore which price snapshot) applies.
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
+import re
+from datetime import datetime, timezone
 
 from . import registry
 
@@ -124,6 +127,69 @@ def no_action(loan_id: str, reason: str) -> str:
     return _decision(loan_id, "no_action", reason)
 
 
+# ── Utility tools (no loan state) ────────────────────────────────────────────
+
+CALC_MAX_LEN = 200
+CALC_TIMEOUT_S = 2.0
+_CALC_OK = re.compile(r"^[0-9+\-*/().%\s]+$")
+_POOL = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+
+
+def calculator(expression: str) -> str:
+    """Evaluate a purely numeric arithmetic expression and return the result.
+
+    Args:
+        expression: Digits, spaces and + - * / ( ) . % only, at most 200 characters,
+            for example "193700 / (15.0773 * 9335.18 * 0.9) * 100".
+    """
+    e = str(expression)
+    if len(e) > CALC_MAX_LEN:
+        return _err(f"expression longer than {CALC_MAX_LEN} characters")
+    if not _CALC_OK.fullmatch(e) or "**" in e or not re.search(r"\d", e):
+        return _err("only digits, spaces and + - * / ( ) . % are allowed")
+    # AgentTune's built-in calculator (asteval) evaluates the already-validated expression.
+    from agenttune.agentic.tools.builtin.finqa_tool import calculator as _agenttune_calc
+
+    fut = _POOL.submit(_agenttune_calc, e)
+    try:
+        out = fut.result(timeout=CALC_TIMEOUT_S)
+    except concurrent.futures.TimeoutError:
+        return _err("calculation timed out")
+    if isinstance(out, str) or out is None:
+        return _err(f"could not evaluate {e!r}")
+    return json.dumps({"expression": e, "result": round(float(out), 6)})
+
+
+_TS_FORMATS = ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%MZ", "%Y-%m-%d %H:%M UTC",
+               "%Y-%m-%d %H:%M:%S UTC", "%Y-%m-%d %H:%M", "%d %b %Y, %H:%M UTC", "%d %b %Y %H:%M UTC")
+
+
+def _parse_ts(s: str) -> datetime | None:
+    s = str(s).strip()
+    for fmt in _TS_FORMATS:
+        try:
+            dt = datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    return None
+
+
+def hours_between(start: str, end: str) -> str:
+    """Return the number of hours from `start` to `end` (negative if `end` is earlier).
+
+    Args:
+        start: A UTC time, for example "2022-11-09T23:59:00Z" or "2022-11-10 06:00 UTC".
+        end: A UTC time in the same formats, for example the determination time.
+    """
+    a, b = _parse_ts(start), _parse_ts(end)
+    if a is None or b is None:
+        return _err("could not parse a time; use e.g. 2022-11-09T23:59:00Z or 2022-11-10 06:00 UTC")
+    return json.dumps({"start": str(start), "end": str(end),
+                       "hours": round((b - a).total_seconds() / 3600.0, 2)})
+
+
 EVIDENCE = [get_loan_agreement, get_position, get_price]
+UTILITY = [calculator, hours_between]
 DECISIONS = [issue_margin_call, no_action, escalate_to_human]
-TOOLS = EVIDENCE + DECISIONS
+TOOLS = EVIDENCE + UTILITY + DECISIONS

@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 
-from kataa.env.world import DECISION_TOOLS, EVIDENCE_TOOLS, ORACLES
+from kataa.env.world import DECISION_TOOLS, EVIDENCE_TOOLS, ORACLES, UTILITY_TOOLS
 
 from .episode import Call, Episode, parse_episode
 
@@ -65,13 +65,17 @@ def _call_key(c: Call) -> tuple:
     if c.name == "get_price":
         return (c.name, _norm_id(a.get("loan_id")), str(a.get("asset", "")).strip().upper(),
                 str(a.get("oracle", "")).strip().lower())
-    if c.name in DECISION_TOOLS:
-        return (c.name, _norm_id(a.get("loan_id")))
+    if c.name in UTILITY_TOOLS:
+        return (c.name,) + tuple(sorted((k, str(v).strip()) for k, v in a.items()))
     return (c.name, _norm_id(a.get("loan_id")))
 
 
 def _valid(c: Call, loan_id: str, assets: set[str]) -> bool:
-    """Arguments are well-formed and refer to this task's loan (and its collateral)."""
+    """Arguments are well-formed and refer to this task's loan (and its collateral).
+    Utility calls (calculator, hours_between) carry no loan; they are valid if well-formed."""
+    if c.name in UTILITY_TOOLS:
+        need = ("expression",) if c.name == "calculator" else ("start", "end")
+        return c.args_ok and all(isinstance(c.args.get(k), str) for k in need)
     if not c.args_ok or c.name not in EVIDENCE_TOOLS + tuple(DECISION_TOOLS):
         return False
     if _norm_id(c.args.get("loan_id", "")) != loan_id:

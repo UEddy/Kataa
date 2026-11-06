@@ -27,4 +27,4 @@ TOOL_RESULT_FORMAT = (
     "Tool result for {name}: {content}\nUse this result to answer the original question."
 )
 
-MAX_TOOL_TURNS = 6  # max_steps_per_turn for rollouts; the ideal run needs 3
+MAX_TOOL_TURNS = 8  # max_steps_per_turn for rollouts; the ideal run needs 5

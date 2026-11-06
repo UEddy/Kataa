@@ -16,6 +16,7 @@ DECISION_TOOLS = {
     "escalate_to_human": "escalate",
 }
 EVIDENCE_TOOLS = ("get_loan_agreement", "get_position", "get_price")
+UTILITY_TOOLS = ("calculator", "hours_between")
 ORACLES = ("primary", "secondary")
 
 

@@ -145,3 +145,21 @@ def test_attacks_do_not_change_answer():
         # The same seed builds the same world; only the attack overlay differs.
         assert clean.answer == attacked.answer
         assert clean.debt_usd == attacked.debt_usd and clean.as_of == attacked.as_of
+
+
+@pytest.mark.parametrize("expr", ["2**10", "9**9**9", "abc", "__import__('os')", "1e5", "()",
+                                  "1" * 201, "len('x')", "1;2", "[1]", "1 if 1 else 2", ""])
+def test_calculator_rejects_non_numeric(expr):
+    pytest.importorskip("agenttune")
+    assert "error" in json.loads(tools.calculator(expr))
+
+
+def test_calculator_and_hours_between():
+    pytest.importorskip("agenttune")
+    assert json.loads(tools.calculator("193700 / (15.0773 * 9335.18 * 0.9) * 100"))["result"] == \
+        pytest.approx(193700 / (15.0773 * 9335.18 * 0.9) * 100, abs=1e-5)
+    assert json.loads(tools.calculator("15%"))["result"] == 0.15
+    assert "error" in json.loads(tools.calculator("(5-3)/0"))
+    for end in ("2022-11-11 06:01 UTC", "11 Nov 2022, 06:01 UTC", "2022-11-11T06:01:00Z"):
+        assert json.loads(tools.hours_between("2022-11-09T23:59:00Z", end))["hours"] == 30.03
+    assert "error" in json.loads(tools.hours_between("yesterday", "2022-11-11 06:01 UTC"))

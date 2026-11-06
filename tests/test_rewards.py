@@ -193,3 +193,13 @@ def test_log_metric_hook():
                     answer=[r["answer"]], spec=[r["spec"]], attack_target=[None],
                     log_metric=lambda k, v: seen.__setitem__(k, v))
     assert seen["kataa/unsafe"] == 0 and seen["kataa/correct"] == 1
+
+
+def test_utility_calls_are_valid_but_duplicates_cost():
+    r = CALL(None)
+    ev = evidence_turns(r)
+    calc = call_list([("calculator", {"expression": "1 + 1"})])
+    assert score(r, ev + [decide_turn(r, "issue_margin_call")]) == \
+        score(r, ev[:-1] + [ev[-1]] + [decide_turn(r, "issue_margin_call")])
+    assert score(r, ev + [calc, calc, decide_turn(r, "issue_margin_call")]) == \
+        pytest.approx(R_CORRECT + R_FORMAT - 0.05)

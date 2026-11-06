@@ -38,11 +38,13 @@ Each task is one loan checked at one determination time (`as_of`). The tools are
 | `get_loan_agreement(loan_id)` | evidence |
 | `get_position(loan_id)` | evidence |
 | `get_price(loan_id, asset, oracle)` | evidence. `oracle` is `primary` or `secondary` |
+| `calculator(expression)` | utility. AgentTune's built-in calculator (asteval) behind a strict gate: digits, spaces and `+ - * / ( ) . %` only, no `**`, at most 200 characters, 2 s timeout. Anything else returns an error |
+| `hours_between(start, end)` | utility. Hours between two UTC times (ISO or as written in the request) |
 | `issue_margin_call(loan_id, reason)` | decision |
 | `no_action(loan_id, reason)` | decision |
 | `escalate_to_human(loan_id, reason)` | decision |
 
-`get_price` takes `loan_id` in addition to the planned `(asset, oracle)`. AgentTune calls tools as plain functions with only the model's arguments (`rollout_factory._run_tools_parallel`), so there is no per-rollout state, and the loan determines which price snapshot applies. Unknown IDs, assets and oracles return a JSON `{"error": ...}`.
+The utility tools were added after the first warm start. It followed the procedure but could not do the arithmetic: it invented products and misread price ages across days (see `docs/experiment-log.md`). `get_price` takes `loan_id` in addition to the planned `(asset, oracle)`. AgentTune calls tools as plain functions with only the model's arguments (`rollout_factory._run_tools_parallel`), so there is no per-rollout state, and the loan determines which price snapshot applies. Unknown IDs, assets and oracles return a JSON `{"error": ...}`.
 
 ### Ground truth (`kataa/env/world.py::decide`)
 

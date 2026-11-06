@@ -42,4 +42,10 @@ Under the naive reward, guessing without tools pays exactly as well as gathering
 
 ## Warm start
 
-`scripts/build_sft.py` writes the scripted ideal runs (`kataa/policy/ideal.py`): fetch the agreement and position, fetch every price from both oracles, write short working notes, then record one decision. `tests/test_e2e_agenttune.py` replays them through AgentTune's real rollout loop and checks that the conversations match the GRPO format token for token. `kataa/train/sft.py` trains on them through `create_distill_trainer`, using a custom `trainer_factory` with loss on the assistant turns only.
+`scripts/build_sft.py` writes the scripted ideal runs (`kataa/policy/ideal.py`):
+
+1. Fetch the agreement and the position.
+2. Fetch every price from both oracles.
+3. Compute the price ages (`hours_between`) and the oracle gaps (`calculator`).
+4. If the prices are usable, compute the collateral value and the LTV (`calculator`).
+5. Write short notes citing those results, then record one decision. `tests/test_e2e_agenttune.py` replays them through AgentTune's real rollout loop and checks that the conversations match the GRPO format token for token. `kataa/train/sft.py` trains on them through `create_distill_trainer`, using a custom `trainer_factory` with loss on the assistant turns only.
