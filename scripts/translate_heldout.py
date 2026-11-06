@@ -140,11 +140,23 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--langs", default=",".join(LANGS))
     ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--redo-below", type=float, default=None,
+                    help="retranslate cached items whose back-translation overlap is below this")
+    ap.add_argument("--effort", default="low", choices=["low", "medium", "high"])
+    ap.add_argument("--glossary", action="store_true",
+                    help="ask for precise lending terms (added after Yoruba garbled them)")
     args = ap.parse_args()
+    global INSTRUCT, SINGLE
+    if args.glossary:
+        g = (" Lending terms must be translated precisely and must not change meaning: margin "
+             "call, collateral, loan, borrower, haircut, LTV, credit committee, liquidation. If "
+             "there is no standard term in the target language, keep the English term.")
+        INSTRUCT = INSTRUCT.replace("Reply with only a", g.strip() + " Reply with only a")
+        SINGLE = SINGLE.replace("Reply with only the", g.strip() + " Reply with only the")
     recs = [json.loads(x) for x in (ROOT / "data/tasks/heldout.jsonl").open()][: args.limit]
     # Large 4 spent a whole 4096-token budget thinking and returned nothing; low effort uses
     # ~1.1k output tokens per 6-item batch (measured) and still passes the back-translation check.
-    client = MistralClient(max_tokens=12000, reasoning_effort="low")
+    client = MistralClient(max_tokens=16000, reasoning_effort=args.effort)
     report = {}
     for code in args.langs.split(","):
         lang = LANGS[code]
@@ -154,6 +166,12 @@ def main() -> int:
             for line in cache_path.open():
                 c = json.loads(line)
                 cache[c["key"]] = c
+        if args.redo_below is not None:
+            redo = {k for k, c in cache.items() if c["back_overlap"] < args.redo_below}
+            print(f"[{code}] redoing {len(redo)} items below overlap {args.redo_below}", flush=True)
+            for k in redo:
+                cache.pop(k)
+            cache_path.write_text("".join(json.dumps(c, ensure_ascii=False) + "\n" for c in cache.values()))
         todo = [t for t in dict.fromkeys(u for r in recs for u in units(r)) if key(t) not in cache]
         print(f"[{code}] {len(todo)} texts to translate ({len(cache)} cached)", flush=True)
         with cache_path.open("a") as f:
