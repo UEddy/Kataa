@@ -14,6 +14,11 @@ if [ "${KATAA_VLLM:-0}" = "1" ]; then
   # AgentTune's [vllm] extra with the vLLM version its pyproject says it resolved and tested
   # (0.22.1; unpinned it now resolves 0.23.0). Default PyPI torch 2.11.0 (CUDA 13; driver 580).
   uv pip install -q -e "/work/AgentTune[vllm]" "vllm==0.22.1"
+  # FlashInfer's sampler JIT-compiles a CUDA kernel on first use and needs nvcc, which this image
+  # lacks (job 6aedbe20c78863f9c6341fa5). Use vLLM's PyTorch sampler instead; fail fast if this
+  # vLLM version does not know the switch.
+  export VLLM_USE_FLASHINFER_SAMPLER=0
+  python -c "import vllm.envs as e; assert e.VLLM_USE_FLASHINFER_SAMPLER is False, e.VLLM_USE_FLASHINFER_SAMPLER; print('flashinfer sampler off')"
 else
   uv pip install -q torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cu128
   uv pip install -q -e /work/AgentTune
