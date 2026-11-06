@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Runs in: HF Job (t4-small). Nov 9 smoke test:
+# Runs in: HF Job (l40sx1; a T4 runs out of memory on Tiny Aya's 262K-vocab logits, see
+# kataa-runs/smoke/88d9468de5c9/logs). Nov 9 smoke test:
 #   A. AgentTune's own Tiny Aya README example, unchanged (10 GRPO steps).
 #   B. Ours: warm start for a few steps on 16 tasks, then 2 GRPO steps with the hardened reward.
 # Logs and adapters go to JustEddy1/kataa-runs under smoke/<sha>/ as the job runs.
 set -uo pipefail
 source "$(dirname "$0")/job_setup.sh"
+set +e  # keep going: each stage reports its own exit code
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 OUT=smoke/${KATAA_SHA}
 mkdir -p /work/logs
 push_logs() { python -c "from kataa.train.hub import push_folder; push_folder('/work/logs', '$OUT/logs', '$OUT: logs')"; }
