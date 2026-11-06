@@ -5,8 +5,9 @@ the system prompt, turn tool calls into `<tool_call>{...}</tool_call>` messages 
 `[{"tool_name": ...}]` list the GRPO rollout asks Tiny Aya for), and the built-in factory trains
 on every token, including the long agreement text. Our factory keeps AgentTune's pipeline
 (Project -> distill -> factory -> .train()) but trains on the exact conversations the GRPO rollout
-produces, one prompt/completion row per assistant turn, so the loss is on the model's own turns
-only (TRL's completion-only loss for prompt-completion data).
+produces, one pre-tokenized row per conversation with an `assistant_masks` column, so the loss is
+on the model's own turns only. (An earlier version used one prompt/completion row per assistant
+turn: same loss, but it re-encoded the ~3K-token prompt for every turn, about 4x the compute.)
 """
 
 from __future__ import annotations
@@ -83,12 +84,35 @@ def to_eventlog(conversation: list[dict]):
     return log
 
 
+def assistant_mask_row(tok, conversation: list[dict], max_length: int = 4096) -> dict:
+    """Tokenize a whole conversation once; mark the tokens of each assistant turn (from the end
+    of the generation prompt through the end-of-turn marker), as generated at rollout time."""
+    full = tok.apply_chat_template(conversation, tokenize=False)
+    spans = []
+    for i, m in enumerate(conversation):
+        if m["role"] != "assistant":
+            continue
+        start = tok.apply_chat_template(conversation[:i], tokenize=False, add_generation_prompt=True)
+        end = tok.apply_chat_template(conversation[: i + 1], tokenize=False)
+        if not (full.startswith(start) and full.startswith(end) and len(end) > len(start)):
+            raise ValueError("chat template is not prefix-stable; cannot mask assistant turns")
+        spans.append((len(start), len(end)))
+    enc = tok(full, add_special_tokens=False, return_offsets_mapping=True)
+    ids = enc["input_ids"]
+    mask = [int(any(a <= s0 and e0 <= b for a, b in spans)) if e0 > s0 else 0
+            for s0, e0 in enc["offset_mapping"]]
+    if len(ids) > max_length:
+        raise ValueError(f"conversation has {len(ids)} tokens > max_length {max_length}")
+    return {"input_ids": ids, "assistant_masks": mask}
+
+
 class KataaSFTFactory:
     """`trainer_factory` for create_distill_trainer: TRL SFTTrainer + LoRA on per-turn rows."""
 
     def __init__(self, conversations: list[list[dict]], lora: dict | None = None,
-                 dtype: Any = None):
+                 dtype: Any = None, max_length: int = 4096):
         self.conversations = conversations
+        self.max_length = max_length
         self.lora = dict(lora or LORA)
         self.dtype = dtype
         self.sft_trainer = None
@@ -116,8 +140,8 @@ class KataaSFTFactory:
             tok.pad_token = tok.eos_token
         dtype = self.dtype or (torch.bfloat16 if torch.cuda.is_available() else torch.float32)
         lm = AutoModelForCausalLM.from_pretrained(model, dtype=dtype)
-        rows = [r for conv in self.conversations for r in turn_rows(conv)]
-        cfg = SFTConfig(**{"completion_only_loss": True, **kwargs})
+        rows = [assistant_mask_row(tok, conv, self.max_length) for conv in self.conversations]
+        cfg = SFTConfig(**{"max_length": self.max_length, **kwargs})
         self.sft_trainer = SFTTrainer(model=lm, args=cfg, train_dataset=Dataset.from_list(rows),
                                       processing_class=tok, peft_config=LoraConfig(**self.lora))
         return self.sft_trainer

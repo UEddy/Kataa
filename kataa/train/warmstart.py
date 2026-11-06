@@ -37,7 +37,7 @@ def main() -> int:
         num_train_epochs=args.epochs, max_steps=args.max_steps, learning_rate=args.lr,
         per_device_train_batch_size=args.batch, gradient_accumulation_steps=args.grad_accum,
         gradient_checkpointing=True, max_length=4096, logging_steps=1,
-        save_strategy="steps", save_steps=args.save_steps, save_total_limit=2,
+        save_strategy="steps", save_steps=args.save_steps, save_total_limit=2,  # local only; every checkpoint is already on the Hub
         report_to="none", lr_scheduler_type="cosine", warmup_steps=5,
         **precision_kwargs(),
     )

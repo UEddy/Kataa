@@ -152,3 +152,22 @@ def test_create_distill_trainer_accepts_the_ideal_runs():
     dt = build_distill_trainer(records, student="CohereLabs/tiny-aya-global",
                                output_dir="/tmp/kataa-sft-check", num_train_epochs=1)
     dt.trainer_factory.check_rows(dt.sft_dataset())
+
+
+def test_assistant_mask_covers_exactly_the_assistant_turns(tok):
+    from kataa.train.sft import assistant_mask_row
+
+    for r in sample_records()[:8]:
+        conv = ideal_conversation(r)
+        row = assistant_mask_row(tok, conv)
+        ids, mask = row["input_ids"], row["assistant_masks"]
+        trained = tok.decode([t for t, m in zip(ids, mask) if m])
+        for m in conv:
+            if m["role"] == "assistant":
+                assert m["content"] in trained
+            else:  # no prompt, tool result or system text is trained on
+                assert m["content"][:200] not in trained
+        n_assist = sum(len(tok(m["content"], add_special_tokens=False)["input_ids"])
+                       for m in conv if m["role"] == "assistant")
+        # Assistant tokens plus a few end-of-turn markers per turn, nothing more.
+        assert n_assist <= sum(mask) <= n_assist + 8 * 4
