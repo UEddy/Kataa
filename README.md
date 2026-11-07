@@ -1,6 +1,6 @@
 # Kataa
 
-*Kataa* is Swahili for "refuse". Kataa is [Tiny Aya Global](https://huggingface.co/CohereLabs/tiny-aya-global)
+*Kataa*  Kataa is [Tiny Aya Global](https://huggingface.co/CohereLabs/tiny-aya-global)
 (3.35B) fine-tuned with Lexsi Labs' **AgentTune** to take a consequential financial action (a
 margin call on a crypto-backed loan) only when the contract and the prices justify it, and to
 refuse when the request is manipulated, the data is stale or contradictory, or the evidence isn't
