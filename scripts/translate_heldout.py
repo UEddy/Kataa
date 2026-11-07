@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 from kataa.eval.mistral_client import MistralClient  # noqa: E402
 
 LANGS = {"fr": "French", "hi": "Hindi", "sw": "Swahili", "yo": "Yoruba", "ha": "Hausa"}
-BATCH = 6
+BATCH = 6  # overridable with --batch
 PROTECT = re.compile(r"LN-[0-9A-F]{6}|\d{2} [A-Z][a-z]{2} \d{4}|\b[a-z]+_[a-z_]+\b|\d+(?:[.:]\d+)*")
 DATETIME = re.compile(r"\d{2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2} UTC|\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC")
 
@@ -143,6 +143,8 @@ def main() -> int:
     ap.add_argument("--redo-below", type=float, default=None,
                     help="retranslate cached items whose back-translation overlap is below this")
     ap.add_argument("--effort", default="low", choices=["low", "medium", "high"])
+    ap.add_argument("--batch", type=int, default=BATCH,
+                    help="items per request (medium effort on 6-item batches hit upstream 502s)")
     ap.add_argument("--glossary", action="store_true",
                     help="ask for precise lending terms (added after Yoruba garbled them)")
     args = ap.parse_args()
@@ -175,8 +177,8 @@ def main() -> int:
         todo = [t for t in dict.fromkeys(u for r in recs for u in units(r)) if key(t) not in cache]
         print(f"[{code}] {len(todo)} texts to translate ({len(cache)} cached)", flush=True)
         with cache_path.open("a") as f:
-            for i in range(0, len(todo), BATCH):
-                src = todo[i:i + BATCH]
+            for i in range(0, len(todo), args.batch):
+                src = todo[i:i + args.batch]
                 masked = [mask(x) for x in src]
                 fwd = [unmask(t, m) for t, (_, m) in
                        zip(call_batch(client, [x for x, _ in masked], lang), masked)]
@@ -188,7 +190,7 @@ def main() -> int:
                     cache[c["key"]] = c
                     f.write(json.dumps(c, ensure_ascii=False) + "\n")
                 f.flush()
-                print(f"[{code}] {min(i + BATCH, len(todo))}/{len(todo)}", flush=True)
+                print(f"[{code}] {min(i + args.batch, len(todo))}/{len(todo)}", flush=True)
         out = [apply(r, [cache[key(u)]["translation"] for u in units(r)], code) for r in recs]
         with (ROOT / f"data/tasks_translated/heldout_{code}.jsonl").open("w") as f:
             f.writelines(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n" for r in out)
