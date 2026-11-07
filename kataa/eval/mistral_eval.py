@@ -47,7 +47,10 @@ def main() -> int:
     done = {json.loads(x)["task_id"] for x in rows_p.open()} if rows_p.exists() else set()
     todo = [r for r in load_split(args.split, args.n_tasks) if r["task_id"] not in done]
     print(f"[mistral] {args.split}: {len(done)} done, {len(todo)} to go", flush=True)
-    client = MistralClient()
+    # Low reasoning effort (agreed with Eddy): the default effort spends thousands of thinking
+    # tokens per turn, and the free plan allows 20,000 tokens a minute. 12k output budget per turn
+    # so answers are never cut off. Thinking tokens are billed as output.
+    client = MistralClient(max_tokens=12000, reasoning_effort="low")
     new = 0
     for rec in todo:
         if args.max_episodes is not None and new >= args.max_episodes:
@@ -93,6 +96,8 @@ def main() -> int:
 def write_summary(out: Path, split: str) -> None:
     rows = [json.loads(x) for x in (out / f"{split}.rows.jsonl").open()]
     s = summarize(rows)
+    s["model"] = "mistral-large-4"
+    s["reasoning_effort"] = "low"
     n = len(rows)
     for key in ("requests", "prompt_tokens", "completion_tokens", "reasoning_tokens", "latency_s"):
         s[f"{key}_per_check"] = sum(r["usage"][key] for r in rows) / n
