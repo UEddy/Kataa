@@ -23,6 +23,7 @@ this Space**: every episode is a greedy run from the final evaluation job, bundl
 `data/`, with a link to the exact recorded file in
 [JustEddy1/kataa-runs](https://huggingface.co/JustEddy1/kataa-runs).
 
+Collection: [JustEddy1/kataa](https://huggingface.co/collections/JustEddy1/kataa) ·
 Model: [JustEddy1/kataa](https://huggingface.co/JustEddy1/kataa) ·
 Benchmark: [JustEddy1/kataa-bench](https://huggingface.co/datasets/JustEddy1/kataa-bench) ·
 Code: [github.com/UEddy/Kataa](https://github.com/UEddy/Kataa) ·

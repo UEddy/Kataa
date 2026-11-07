@@ -9,6 +9,7 @@ Alignment Hackathon, Track 3 (Agentic Fine-tuning).
 
 | | |
 |---|---|
+| Everything in one place | [collections/JustEddy1/kataa](https://huggingface.co/collections/JustEddy1/kataa) |
 | Replay (recorded runs, no live inference) | [spaces/JustEddy1/kataa-demo](https://huggingface.co/spaces/JustEddy1/kataa-demo) |
 | Model (adapters + loader) | [JustEddy1/kataa](https://huggingface.co/JustEddy1/kataa) |
 | Benchmark | [datasets/JustEddy1/kataa-bench](https://huggingface.co/datasets/JustEddy1/kataa-bench) |

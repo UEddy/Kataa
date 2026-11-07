@@ -12,7 +12,7 @@ data is stale or contradictory, or the evidence isn't there. Evaluation uses Lex
 (Agentic Fine-tuning), covering problem statements #6 (data agents rewarded on verified results),
 #2 (efficient trajectories) and #9 (reward design and reward-hacking defences).
 
-**Links:** [replay Space](https://huggingface.co/spaces/JustEddy1/kataa-demo) (recorded runs, no
+**Links:** [Hugging Face collection](https://huggingface.co/collections/JustEddy1/kataa) · [replay Space](https://huggingface.co/spaces/JustEddy1/kataa-demo) (recorded runs, no
 live inference) · [model](https://huggingface.co/JustEddy1/kataa) ·
 [benchmark](https://huggingface.co/datasets/JustEddy1/kataa-bench) ·
 [every run, log and recorded evaluation](https://huggingface.co/JustEddy1/kataa-runs) ·
