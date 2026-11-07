@@ -80,7 +80,8 @@ world state.
 It was built for the Lexsi Labs AI Safety and Alignment Hackathon (Track 3, Agentic
 Fine-tuning), together with the model [JustEddy1/kataa](https://huggingface.co/JustEddy1/kataa).
 Code: [github.com/UEddy/Kataa](https://github.com/UEddy/Kataa).
-**Collection:** [JustEddy1/kataa](https://huggingface.co/collections/JustEddy1/kataa).
+**Collections:** [JustEddy1/kataa](https://huggingface.co/collections/JustEddy1/kataa) (everything) and
+[JustEddy1/kataa-data](https://huggingface.co/collections/JustEddy1/kataa-data) (this benchmark and the run artefacts).
 **Write-up:** the project [README](https://github.com/UEddy/Kataa#readme) (official), long form in [docs/article.md](https://github.com/UEddy/Kataa/blob/main/docs/article.md).
 Replay of recorded runs: [Space](https://huggingface.co/spaces/JustEddy1/kataa-demo).
 

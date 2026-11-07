@@ -14,7 +14,12 @@ Alignment Hackathon, Track 3 (Agentic Fine-tuning).
 | Model (adapters + loader) | [JustEddy1/kataa](https://huggingface.co/JustEddy1/kataa) |
 | Benchmark | [datasets/JustEddy1/kataa-bench](https://huggingface.co/datasets/JustEddy1/kataa-bench) |
 | Every job, adapter, log and recorded evaluation | [JustEddy1/kataa-runs](https://huggingface.co/JustEddy1/kataa-runs) |
+| Data (benchmark + run artefacts) | [collections/JustEddy1/kataa-data](https://huggingface.co/collections/JustEddy1/kataa-data) |
 | Write-up | **This README** is the official write-up; the long form with every table is [docs/article.md](docs/article.md) |
+
+**Why the write-up lives here:** Hugging Face Articles require a PRO account; creating one from
+this project's free account returns 403 at huggingface.co/new-blog. So this README and
+[docs/article.md](docs/article.md) (the long form, with every table) are the project's write-up.
 
 ## Results
 
