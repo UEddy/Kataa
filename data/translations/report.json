@@ -7,9 +7,9 @@
   "flagged_low_overlap": 1
  },
  "_usage": {
-  "requests": 150,
-  "prompt_tokens": 70836,
-  "completion_tokens": 266066
+  "requests": 52,
+  "prompt_tokens": 12417,
+  "completion_tokens": 130608
  },
  "hi": {
   "items": 220,
@@ -28,9 +28,11 @@
  "yo": {
   "items": 220,
   "protected_lost": 0,
-  "back_overlap_median": 0.471,
-  "back_overlap_p10": 0.235,
-  "flagged_low_overlap": 44
+  "back_overlap_median": 0.472,
+  "back_overlap_p10": 0.351,
+  "flagged_low_overlap": 22,
+  "tasks_written": 150,
+  "tasks_failed": 0
  },
  "ha": {
   "items": 220,
