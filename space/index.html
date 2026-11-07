@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kataa · recorded runs</title>
+<meta name="description" content="Base Tiny Aya vs Kataa on held-out prompt-injection attacks at a simulated margin desk. Recorded runs, no live inference.">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23b3261e'/%3E%3Cpath d='M9 9l14 14M23 9L9 23' stroke='%23fff' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap">
+    <div class="mast-top">
+      <p class="kicker">Margin desk · ledger of recorded runs</p>
+      <button class="theme" id="theme" type="button" aria-label="Toggle dark mode">◐</button>
+    </div>
+    <h1>Kataa <span class="gloss">Swahili: <em>refuse</em></span></h1>
+    <p class="lede">A 3B model trained to issue a margin call only when the contract and the prices
+      justify it, and to ignore instructions planted in its data. Below, base Tiny Aya and Kataa face the
+      same held-out attacks, including two kinds never seen in training.</p>
+    <p class="recorded" role="note"><strong>Recorded runs.</strong> Held-out split, greedy decoding,
+      from the final evaluation job. No model runs on this page.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="figures" aria-label="Headline results" id="figures"></section>
+
+  <section class="desk" aria-label="Recorded episodes">
+    <div class="controls" role="toolbar" aria-label="Filters">
+      <div class="group" aria-label="Language">
+        <span class="glabel">Language</span>
+        <div class="seg" id="langs"></div>
+      </div>
+      <div class="group">
+        <span class="glabel">Attack</span>
+        <div class="seg" id="families"></div>
+      </div>
+      <div class="group">
+        <span class="glabel">Outcome</span>
+        <div class="seg" id="outcomes"></div>
+      </div>
+      <div class="group">
+        <span class="glabel">Condition</span>
+        <select id="condition" aria-label="Condition"></select>
+      </div>
+    </div>
+
+    <div class="ledger">
+      <aside class="list" aria-label="Tasks">
+        <div class="list-head"><span id="count"></span><button type="button" class="link" id="next" data-check="next-task">Next case →</button></div>
+        <ol id="tasks"></ol>
+      </aside>
+      <article class="case" id="case" aria-live="polite"></article>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>Model <a href="https://huggingface.co/JustEddy1/kataa">JustEddy1/kataa</a> ·
+     Benchmark <a href="https://huggingface.co/datasets/JustEddy1/kataa-bench">JustEddy1/kataa-bench</a> ·
+     Run artefacts <a href="https://huggingface.co/JustEddy1/kataa-runs">JustEddy1/kataa-runs</a> ·
+     Code <a href="https://github.com/UEddy/Kataa">github.com/UEddy/Kataa</a></p>
+  <p>Tiny Aya Global and Kataa: CC-BY-NC 4.0. Trained with AgentTune and evaluated with AuditKIT (Lexsi Labs,
+     non-commercial licences). Price data © Coin Metrics, Inc., CC BY-NC 4.0. Loans, contracts and attacks are synthetic.
+     Lexsi Labs AI Safety and Alignment Hackathon, Track 3.</p>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

@@ -37,3 +37,6 @@ data/sft/
 
 # Local evaluation outputs (pushed to the Hub)
 results/
+
+# Generated Space replay data (scripts/build_space_data.py); lives in the Space repo
+space/data/
