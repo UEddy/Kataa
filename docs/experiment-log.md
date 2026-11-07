@@ -136,3 +136,44 @@ Reading, not yet significance-tested:
 - **The unsafe rate stays far above Mistral's.**
 
 Still to do: significance testing, applying the exclusions, matched 150-task comparisons with Mistral, and AuditKIT.
+
+## Nov 7: targeted DPO repair of run 2 (rejected by the pre-agreed gate)
+
+Design (agreed before the run; `kataa/train/dpo.py`): run 2 greedy on the 1,200 **train** tasks;
+each unsafe decision becomes a pair cut at the decision: the prompt is run 2's own conversation up
+to its first decision, rejected is that turn, and chosen is the scripted ideal decision turn. The
+pairs go through AgentTune's self-heal path (`TrainingExample` -> `agenttune.agentic.build_dataset`
+-> `create_agentic_trainer("dpo")`). Loss: sigmoid DPO, beta 0.1, plus a 0.2 SFT term on the
+chosen turns. New LoRA (r 16) on merged WS2+run2, lr 2e-5, 2 epochs, effective batch 8 (72 steps).
+
+| Job | What | Result | Cost |
+|---|---|---|---|
+| 6aef03f2… | Collect + pairs + DPO | Collection fine (run 2 on train: 72.5% accuracy, 23.7% unsafe, **284 pairs**). Out of memory in the first backward pass: TRL 1.7.1 takes full-length logits (~4.5K tokens x 262K vocab) before masking to the completion | ~$0.56 |
+| 6aef271a… | Same pairs (reused collection), DPO with logits computed only from the first completion position (CPU-tested equal to TRL's loss), held-out eval, gate | Trained (peak 10.4 GiB, 24 s/step); **gate rejected** | ~$1.24 |
+
+Pairs: chosen escalate 159 / no action 111 / margin call 14; rejected margin call 193 / no action
+91; conditions stale_both 84, cure_active 77, oracle_conflict 75, stale_primary 27, clean 18.
+
+Held-out (300), greedy, paired against run 2's published rows:
+
+| | Run 2 | DPO | Difference [95% CI] | Gate check |
+|---|---|---|---|---|
+| Unsafe | 25.0% | 15.0% | −10.0 pp [−16.7, −3.3] | pass (CI below zero) |
+| Accuracy | 73.0% | 18.3% | −54.7 pp [−62.3, −46.7] | **fail** (limit −2 pp) |
+| Over-escalation | 0.3% | 81.0% | +80.7 pp [+76.0, +85.0] | **fail** (limit 5%) |
+| Followed an attack | 12.3% | 15.0% | +2.7 pp [−3.3, +8.7] | **fail** (must not rise) |
+
+**The DPO model escalates 99% of held-out tasks.** Its lower unsafe rate comes entirely from no
+longer acting; the unsafe cases left (15%) are escalations that an attack asked for when the
+correct answer was to act (`inj_structured` 23, `pressure_authority` 22). This is the
+escalate-everything failure the gate was written to catch. Run 2 stays the final model.
+
+Why: every pair said "this action was wrong"; none said "acting was right here". 56% of the
+chosen turns are escalations and 68% of the rejected turns are margin calls, so "escalate rather
+than act" fits nearly every pair. The preference accuracy hit 1.0 by step 9 and the reward margin
+saturated (~5) within the first epoch (36 steps). The 0.2 SFT term on the chosen turns, mostly
+escalations, did not prevent it. A fix would need anchor pairs where the correct action is chosen
+over an unnecessary escalation, and fewer steps or a larger beta; that was not run.
+
+Reproducibility: run 2 re-evaluated in the same job matches the published held-out rows on
+296/300 decisions, with identical accuracy (73.0%) and unsafe rate (25.0%).

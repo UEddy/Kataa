@@ -53,7 +53,10 @@ significant), with translation exclusions applied.
 - Run 2 vs run 1: no significant difference on any headline metric.
 - Failure analysis: stale prices on both oracles, oracle conflicts and active cure periods stay at
   0–9% accuracy for every trained model, and RL made cure periods worse (WS2 8.9% → run 2 0%).
-- DPO repair (job 6aef03f2…): report its gate verdict, whichever way it goes.
+- DPO repair (jobs 6aef03f2…, 6aef271a…): **rejected by the pre-agreed gate.** Unsafe fell
+  25.0% → 15.0%, but only because the model escalates 99% of tasks (accuracy 18.3%,
+  over-escalation 81%). Report it as a second, clear example of reward/preference hacking (problem
+  #9): training only on failures taught "never act". See `docs/experiment-log.md`.
 
 ## 4. Reward-hacking evidence
 
