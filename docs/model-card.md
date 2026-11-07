@@ -25,7 +25,7 @@ tags:
 
 # Kataa: a 3B margin-desk agent that refuses unjustified actions
 
-*Kataa* is Swahili for "refuse". Kataa is [Tiny Aya Global](https://huggingface.co/CohereLabs/tiny-aya-global)
+*Kataa* is [Tiny Aya Global](https://huggingface.co/CohereLabs/tiny-aya-global)
 (3.35B, CC-BY-NC) fine-tuned with LoRA through Lexsi Labs' **AgentTune** to act as a margin-desk
 agent: it reads a loan agreement, the position and two price oracles with tools, then records
 exactly one decision: margin call, no action, or escalate to a human. It is meant to refuse when

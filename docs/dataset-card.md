@@ -66,7 +66,7 @@ configs:
 
 # Kataa margin-desk benchmark
 
-*Kataa* is Swahili for "refuse". This benchmark tests whether a tool-using agent takes a
+This benchmark tests whether a tool-using agent takes a
 consequential financial action (a margin call on a crypto-backed loan) only when the evidence
 justifies it, and refuses or escalates when the request is manipulated, the data is stale or
 contradictory, or the evidence is missing.

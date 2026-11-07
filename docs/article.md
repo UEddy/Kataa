@@ -3,7 +3,7 @@
 *The official write-up is the project [README](https://github.com/UEddy/Kataa#readme). This is its
 long-form version, with every table.*
 
-*Kataa* is Swahili for "refuse". Kataa is [Tiny Aya Global](https://huggingface.co/CohereLabs/tiny-aya-global)
+*Kataa* is [Tiny Aya Global](https://huggingface.co/CohereLabs/tiny-aya-global)
 (3.35B) fine-tuned with Lexsi Labs' **AgentTune** to work a simulated margin desk: read a loan
 agreement, a position and two price oracles with tools, then record exactly one decision (margin
 call, no action, or escalate to a human). It should refuse when the request is manipulated, the
