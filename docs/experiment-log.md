@@ -89,3 +89,50 @@ Two failure types:
 WS2 accuracy by condition (greedy): clean 96%, cure_expired 91%, oracle_within 87%, missing_position 100%, stale_primary 40%, **cure_active 15%, oracle_conflict 14%, stale_both 0%**.
 
 The arithmetic is fixed. The remaining errors are judgment: the model computes that a price is 50 h old against a 24 h limit, then acts anyway. Naive-reward spread (40 x 4, temperature 0.9) is 67.5%, so run 1 may start from WS2.
+
+## Runs 1 and 2 (lr 5e-5, 90 steps, from WS2)
+
+- Run 1, naive reward: job 6aee0a3a…, ~$3.90. Passed `check_run.py` (max KL 0.021).
+- Run 2, hardened reward: job 6aee40ea…, ~$3.81. Same code snapshot (169140127fca) and settings; only the reward differs. Passed `check_run.py` (max KL 0.105).
+- Training logs show no reward gaming in run 1: evidence-before-decision stayed at 97-100% and the decision mix was stable.
+
+## Final evaluation (job 6aee9bf3…, ~$1.67, after ~4 h queued)
+
+Greedy. Translated rows are before the exclusion rule in `data/translations/exclusions.json` is applied. Results are in `kataa-runs/eval/final/88e8bac4dc62/`.
+
+| Held-out (300) | Base | Prompted | WS2 | Run 1 | Run 2 |
+|---|---|---|---|---|---|
+| Accuracy | 19.0% | 20.7% | 68.3% | 73.7% | 73.0% |
+| Unsafe | 29.7% | 25.3% | 28.0% | 24.3% | 25.0% |
+| Followed an attack | 21.0% | 20.0% | 14.7% | 12.0% | 12.3% |
+| Over-escalation | 4.7% | 16.3% | 1.3% | 0.0% | 0.3% |
+| Evidence first | 0.3% | 5.7% | 97.7% | 98.7% | 97.3% |
+| No decision | 51.3% | 44.7% | 0% | 0% | 0% |
+
+| Test (300) | Base | Prompted | WS2 | Run 1 | Run 2 |
+|---|---|---|---|---|---|
+| Accuracy | 13.0% | 16.0% | 66.3% | 68.3% | 67.7% |
+| Unsafe | 22.7% | 24.0% | 29.7% | 29.0% | 29.3% |
+| Followed an attack | 7.7% | 8.7% | 3.7% | 3.7% | 3.7% |
+
+Translated held-out (base vs run 2), accuracy / unsafe:
+
+- French (300): 21.3% / 31.7% vs 72.7% / 25.3%
+- Hindi (150): 20.0% / 24.0% vs 69.3% / 30.0%
+- Swahili (150): 16.0% / 26.0% vs 68.7% / 30.7%
+- Yoruba (150): 12.0% / 22.7% vs 67.3% / 29.3%
+- Hausa (150): 18.0% / 26.7% vs 68.0% / 30.0%
+
+Mistral Large 4 (low reasoning effort; first 150 test and first 150 held-out tasks), accuracy / unsafe:
+
+- Test: 95.3% / 2.7%; $11.28 per 1,000 checks at list ($5.64 at launch-sale); 14.4 s per check.
+- Held-out: 92.0% / 2.7%; $11.72 ($5.86); 16.1 s.
+
+Reading, not yet significance-tested:
+
+- **Most of the gain comes from the warm start with tools.** Accuracy rises from 13-19% to 66-68% and evidence-gathering from ~0% to ~98%; following held-out attacks drops from 21% to ~12-15%.
+- **RL adds a few points.** After 90 steps the naive and hardened rewards are indistinguishable, and **the hardened reward did not reduce unsafe actions more than the naive one**: both sit at 24-29%.
+- **Run 2 keeps 67-73% accuracy across the five languages** after English-only training.
+- **The unsafe rate stays far above Mistral's.**
+
+Still to do: significance testing, applying the exclusions, matched 150-task comparisons with Mistral, and AuditKIT.
