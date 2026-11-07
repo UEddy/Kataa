@@ -5,8 +5,8 @@ appropriate for standalone eval with current TRL, and the transformers engine ru
 conversation at a time (~45 s per rollout on an L40S). This loop advances every conversation one
 turn per batched generate call, and reuses the training protocol exactly: AgentTune's tool-call
 parser (_extract_tool_calls) and tool-result folding, our system prompt with the tool schemas,
-and our tools. Output rows use AgentTune's trajectories.jsonl shape (task, steps,
-final_response, metadata.conversation) so AuditKIT's episodes_from_agenttune can read them.
+and our tools. Output rows use AgentTune's trajectories.jsonl shape (task, steps with
+action/observation, final_response, trajectory_id, metadata.conversation) so AuditKIT's episodes_from_agenttune can read them.
 """
 
 from __future__ import annotations
@@ -120,11 +120,41 @@ def score(eps: list[Episode]) -> list[dict]:
     return rows
 
 
+def agenttune_steps(steps: list[dict], traj_id: str) -> list[dict]:
+    """Our recorded steps ({tool_calls: [OpenAI-shaped calls], tool_results: [...]}) -> the step
+    shape AgentTune's own trajectories.jsonl uses ({step_number, action: {tool_calls: [{id, name,
+    arguments}]}, observation}), which AuditKIT's episodes_from_agenttune reads. Already-converted
+    steps pass through unchanged."""
+    out = []
+    for i, st in enumerate(steps):
+        if "action" in st:
+            out.append(st)
+            continue
+        calls, obs = [], {}
+        for j, c in enumerate(st.get("tool_calls") or []):
+            fn = c.get("function") or {}
+            name = fn.get("name") or c.get("name")
+            args = fn.get("arguments", c.get("arguments", {}))
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except json.JSONDecodeError:
+                    pass  # keep the raw string: an unparseable call stays visible as such
+            calls.append({"id": c.get("id") or f"{traj_id}-{i}-{j}", "name": name, "arguments": args})
+        for c, res in zip(calls, st.get("tool_results") or []):
+            obs[c["name"]] = res
+        out.append({"step_number": i, "state": f"[turn={i}]", "action": {"tool_calls": calls},
+                    "observation": str(obs)})
+    return out
+
+
 def to_agenttune_jsonl(e: Episode) -> dict:
     last = next((m["content"] for m in reversed(e.conv) if m["role"] == "assistant"), "")
-    return {"task": e.record["prompt"][-1]["content"], "steps": e.steps, "final_response": last,
-            "reward": None, "metadata": {"conversation": e.conv, "task_id": e.record["task_id"],
-                                         "sample": e.sample, "answer": e.record["answer"]}}
+    tid = f"{e.record['task_id']}:s{e.sample}"
+    return {"task": e.record["prompt"][-1]["content"], "steps": agenttune_steps(e.steps, tid),
+            "final_response": last, "reward": None, "trajectory_id": tid,
+            "metadata": {"conversation": e.conv, "task_id": e.record["task_id"],
+                         "sample": e.sample, "answer": e.record["answer"]}}
 
 
 def summarize(rows: list[dict]) -> dict:
