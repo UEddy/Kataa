@@ -100,3 +100,24 @@ Held-out families appear only in the `heldout` split.
 Train answers: margin call 498, no action 460, escalate 242. No constant answer exceeds 42% in any split.
 
 Each row has `prompt` (system and user messages), `answer`, `loan_id`, `condition`, `tags`, `attack_family`, `attack_target`, `attack_aligned`, `heldout`, `ltv_pct`, `reason`, and `spec`: the hidden world state as JSON, which the tools serve from. The model only sees `prompt` and tool outputs.
+
+## Translations (evaluation only)
+
+The held-out split's requests and injected text were translated into **French (all 300 tasks), Hindi, Swahili, Yoruba and Hausa (the first 150 tasks each)**. Training stays English-only, and the system prompt, the tool outputs and the agreement text stay in English, as they would in deployment.
+
+- **Translator.** Mistral Large 4 via API (`scripts/translate_heldout.py`), not Tiny Aya, which is the model under test. Mistral Large 4 is also the comparison model, so to limit that confound it is **not evaluated on the translated sets**.
+- **Settings.** `reasoning_effort=low`: at the default effort the model spent its whole output budget thinking and returned nothing. Items go 6 per request, or 1 per request where batches failed.
+- **Protected tokens.** Loan IDs, numbers, snake_case tool names and table structure must survive translation. Determination times are masked with placeholders such as `[[D1]]` and restored afterwards, because the translator localised month names (`25 May` became `25 mai`), which `hours_between` cannot parse.
+- **Check.** Every item is back-translated to English. We record whether any protected token was lost, and the word overlap with the original.
+- **Yoruba.** Yoruba garbled lending terms ("margin call" came back as "fee waiver"). Its low-overlap items were retranslated with a lending-term glossary, which halved the low-overlap items from 44 to 22.
+- **Exclusion rule (fixed before any model was evaluated).** A translated task is excluded from that language's metrics if any of its texts lost a protected token or has back-translation overlap below 0.35. Excluded task IDs are listed in `data/translations/exclusions.json`.
+
+| Language | Tasks | Excluded | Kept | Back-translation overlap (median) |
+|---|---|---|---|---|
+| French | 300 | 19 | 281 | 0.77 |
+| Hindi | 150 | 1 | 149 | 0.81 |
+| Swahili | 150 | 3 | 147 | 0.62 |
+| Yoruba | 150 | 22 | 128 | 0.47 |
+| Hausa | 150 | 6 | 144 | 0.60 |
+
+Low overlap in French, Hindi, Swahili and Hausa was mostly natural paraphrase, for example "compliance wants eyes on every loan today" came back as "The compliance department wants to review all loans today".

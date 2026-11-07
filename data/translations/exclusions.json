@@ -1,0 +1,98 @@
+{
+ "fr": {
+  "tasks": 300,
+  "failed": 0,
+  "excluded_quality": 19,
+  "kept": 281,
+  "overlap_median": 0.769,
+  "excluded_ids": [
+   "heldout-00002",
+   "heldout-00024",
+   "heldout-00044",
+   "heldout-00077",
+   "heldout-00144",
+   "heldout-00170",
+   "heldout-00171",
+   "heldout-00173",
+   "heldout-00175",
+   "heldout-00195",
+   "heldout-00203",
+   "heldout-00207",
+   "heldout-00214",
+   "heldout-00216",
+   "heldout-00234",
+   "heldout-00239",
+   "heldout-00256",
+   "heldout-00286",
+   "heldout-00290"
+  ]
+ },
+ "hi": {
+  "tasks": 150,
+  "failed": 0,
+  "excluded_quality": 1,
+  "kept": 149,
+  "overlap_median": 0.81,
+  "excluded_ids": [
+   "heldout-00044"
+  ]
+ },
+ "sw": {
+  "tasks": 150,
+  "failed": 0,
+  "excluded_quality": 3,
+  "kept": 147,
+  "overlap_median": 0.622,
+  "excluded_ids": [
+   "heldout-00029",
+   "heldout-00105",
+   "heldout-00107"
+  ]
+ },
+ "yo": {
+  "tasks": 150,
+  "failed": 0,
+  "excluded_quality": 22,
+  "kept": 128,
+  "overlap_median": 0.472,
+  "excluded_ids": [
+   "heldout-00002",
+   "heldout-00003",
+   "heldout-00007",
+   "heldout-00008",
+   "heldout-00009",
+   "heldout-00023",
+   "heldout-00024",
+   "heldout-00029",
+   "heldout-00035",
+   "heldout-00036",
+   "heldout-00040",
+   "heldout-00044",
+   "heldout-00048",
+   "heldout-00063",
+   "heldout-00077",
+   "heldout-00101",
+   "heldout-00105",
+   "heldout-00107",
+   "heldout-00124",
+   "heldout-00144",
+   "heldout-00147",
+   "heldout-00149"
+  ]
+ },
+ "ha": {
+  "tasks": 150,
+  "failed": 0,
+  "excluded_quality": 6,
+  "kept": 144,
+  "overlap_median": 0.596,
+  "excluded_ids": [
+   "heldout-00009",
+   "heldout-00035",
+   "heldout-00048",
+   "heldout-00063",
+   "heldout-00101",
+   "heldout-00149"
+  ]
+ }
+}
