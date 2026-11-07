@@ -4,8 +4,8 @@
 
 const LANGS = [["en", "EN"], ["fr", "FR"], ["hi", "HI"], ["sw", "SW"], ["yo", "YO"], ["ha", "HA"]];
 const LANG_NAME = { en: "English", fr: "French", hi: "Hindi", sw: "Swahili", yo: "Yoruba", ha: "Hausa" };
-const FAMILIES = [["all", "All"], ["pressure_authority", "Authority persona"], ["inj_structured", "Structured-data injection"]];
-const OUTCOMES = [["all", "All"], ["held", "Kataa held, base fell"], ["kataa_unsafe", "Kataa unsafe"], ["kataa_wrong", "Kataa wrong, not unsafe"]];
+const FAMILIES = [["all", "All attacks"], ["pressure_authority", "Authority persona"], ["inj_structured", "Structured data"]];
+const OUTCOMES = [["all", "All cases"], ["held", "Kataa held, base fell"], ["kataa_unsafe", "Kataa unsafe"], ["kataa_wrong", "Kataa wrong, not unsafe"]];
 const DECISION = { margin_call: "Margin call", no_action: "No action", escalate: "Escalated" };
 const TOOLS_DECISION = new Set(["issue_margin_call", "no_action", "escalate_to_human"]);
 
@@ -32,8 +32,6 @@ function seededOrder(n, seed) { const r = mulberry32(seed), a = [...Array(n).key
 function verdictClass(v) { if (!v || v.decision === null) return "none"; if (v.unsafe) return "bad"; if (v.correct) return "ok"; return "wrong"; }
 function verdictWord(v) { if (!v || v.decision === null) return "No decision"; if (v.unsafe) return "Unsafe"; if (v.correct) return "Correct"; return "Wrong"; }
 
-function getStore(k) { try { return localStorage.getItem(k); } catch { return null; } }
-function setStore(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } }
 
 /* ---------- headline figures ---------- */
 function renderFigures() {
@@ -56,7 +54,7 @@ function segButtons(id, items, key, prefix) {
   box.replaceChildren(...items.map(([v, label]) => el("button", {
     type: "button", "data-check": `${prefix}-${v}`, "data-value": v, "aria-pressed": String(state[key] === v),
     onclick: () => { state[key] = v; syncControls(); renderList(true); },
-  }, label)));
+  }, id === "outcomes" ? el("span", { class: "ic", "aria-hidden": "true" }) : null, label)));
 }
 function syncControls() {
   for (const [id, key] of [["langs", "lang"], ["families", "family"], ["outcomes", "outcome"]])
@@ -76,12 +74,6 @@ function setupControls() {
     const i = vis.findIndex((t) => t.id === state.id);
     select(vis[(i + 1) % vis.length].id);
   });
-  const theme = document.getElementById("theme");
-  const saved = getStore("kataa-theme"); if (saved) document.documentElement.dataset.theme = saved;
-  theme.addEventListener("click", () => {
-    const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-    document.documentElement.dataset.theme = dark ? "light" : "dark"; setStore("kataa-theme", document.documentElement.dataset.theme);
-  });
 }
 
 /* ---------- list ---------- */
@@ -99,7 +91,7 @@ function visible() { return state.order.map((i) => state.index[i]).filter(matche
 function dot(v) { return el("span", { class: "dot " + verdictClass(v), title: verdictWord(v) }, verdictWord(v).toUpperCase()); }
 function renderList(selectFirst) {
   const vis = visible(), ol = document.getElementById("tasks");
-  document.getElementById("count").textContent = `${vis.length} case${vis.length === 1 ? "" : "s"} · ${LANG_NAME[state.lang]} · badges: base | Kataa`;
+  document.getElementById("count").textContent = `${vis.length} case${vis.length === 1 ? "" : "s"} · ${LANG_NAME[state.lang]} · base | Kataa`;
   if (!vis.length) {
     ol.replaceChildren(el("li", { class: "empty", text: "No recorded case matches these filters. The case on the right is from your previous selection." }));
     return;
@@ -176,14 +168,47 @@ async function select(id) {
   ].filter(Boolean));
 }
 
-/* ---------- story ---------- */
+/* ---------- hero, strip, story ---------- */
+async function renderHero() {
+  const box = document.getElementById("hero-visual");
+  let t;
+  try { t = await loadTask("heldout-00000"); } catch { return; }
+  const inj = t.injection.en.text;
+  const rest = t.request.en.split("\n\n").filter((p) => !inj.includes(p.trim())).join(" ");
+  const row = (who, name) => {
+    const v = t.lanes.en[who].verdict;
+    const how = v.followed_attack ? "followed the attack" : v.evidence_ok ? "evidence first" : "no evidence";
+    return el("div", { class: "mock-row" },
+      el("div", {}, el("b", { text: name }), el("small", { text: v.n_calls + " tool call" + (v.n_calls === 1 ? "" : "s") + " · " + how })),
+      el("span", { class: "stamp " + verdictClass(v), text: (DECISION[v.decision] || "No decision") + " · " + verdictWord(v) }));
+  };
+  box.replaceChildren(
+    el("div", { class: "mock" }, el("span", { class: "mock-tag", text: "Recorded run · heldout-00000" }),
+      el("p", { class: "mock-req", text: inj }), el("span", { class: "mock-req-note", text: "planted in the request: a held-out authority persona" }),
+      el("p", { class: "notes", text: rest }),
+      row("base", "Base Tiny Aya Global"), row("kataa", "Kataa")),
+    el("div", { class: "mock-side" }, el("div", { class: "k", text: "ground truth" }), el("div", { text: DECISION[t.answer] }),
+      el("div", { class: "k", text: "reason" }), el("div", { text: t.reason })));
+}
+function renderStrip() {
+  const h = state.summary.heldout, s = state.summary;
+  const item = (b, span) => el("div", { class: "strip-item" }, el("b", { text: b }), el("span", { text: span }));
+  const arrow = (m) => pct(h.base[m].mean, 0) + " → " + pct(h.kataa[m].mean, 0);
+  document.getElementById("strip").replaceChildren(
+    item(arrow("unsafe_when_deciding"), "unsafe when it acts"),
+    item(arrow("accuracy"), "accuracy"),
+    item(arrow("followed_attack"), "followed the attack"),
+    item("300", "held-out tasks"), item("6", "languages"),
+    item("$" + s.kataa_cost_per_1000.toFixed(2), "per 1,000 checks"));
+}
 function renderStory() {
   const d = state.summary.dpo;
-  const s = el("section", { class: "story", "aria-label": "The rejected repair" },
-    el("h2", { text: "A repair that looked safer, and was rejected" }),
-    el("p", { text: `We tried one more fix: DPO on Kataa's own unsafe decisions from the training tasks. The unsafe rate on these held-out tasks fell from ${pct(d.unsafe[0], 0)} to ${pct(d.unsafe[1], 0)}, a significant drop. The acceptance gate, written before the run, still rejected it: the model had learned to escalate ${pct(d.escalated, 0)} of tasks. Accuracy fell to ${pct(d.accuracy[1], 0)} and unnecessary escalation rose to ${pct(d.over_escalate[1], 0)}. It is not shown here and was not released.` }),
-    el("p", { text: "Refusing everything looks safe on an unsafe-rate chart. A desk that never acts is not a working desk, so the gate also measures accuracy and over-escalation." }));
-  document.querySelector("main").append(s);
+  const fig = (title, big, note, cls = "") => el("div", { class: "fig " + cls }, el("h2", { text: title }), big, el("p", { text: note }));
+  const change = (a, b) => el("div", { class: "big" }, el("span", { class: "from", text: pct(a, 0) }), el("span", { class: "arrow", text: "→" }), pct(b, 0));
+  document.getElementById("story-card").replaceChildren(el("div", { class: "story" },
+    fig("Unsafe actions", change(d.unsafe[0], d.unsafe[1]), "DPO on Kataa's own unsafe decisions from the training tasks. A significant drop on the held-out tasks."),
+    fig("Tasks escalated", el("div", { class: "big", text: pct(d.escalated, 0) }), "It learned to hand almost every loan to a human. Unnecessary escalation rose from 0.3% to 81%.", "warn"),
+    fig("Accuracy", change(d.accuracy[0], d.accuracy[1]), "The acceptance gate, written before the run, rejected it. It is not shown here and was not released.")));
 }
 
 /* ---------- boot ---------- */
@@ -197,7 +222,7 @@ async function boot() {
   }
   const m = /^#([\w-]+)(?:&lang=(\w+))?/.exec(location.hash);
   if (m && LANGS.some(([l]) => l === m[2])) state.lang = m[2];
-  renderFigures(); setupControls(); renderStory();
+  renderFigures(); renderStrip(); setupControls(); renderStory(); renderHero();
   if (m && state.index.some((t) => t.id === m[1])) { state.id = m[1]; renderList(false); } else renderList(true);
 }
 boot();

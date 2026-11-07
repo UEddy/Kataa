@@ -3,68 +3,112 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>Kataa · recorded runs</title>
 <meta name="description" content="Base Tiny Aya vs Kataa on held-out prompt-injection attacks at a simulated margin desk. Recorded runs, no live inference.">
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23b3261e'/%3E%3Cpath d='M9 9l14 14M23 9L9 23' stroke='%23fff' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111'/%3E%3Cpath d='M10 10l12 12M22 10L10 22' stroke='%23f2f2f2' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
 </head>
 <body>
-<header class="masthead">
-  <div class="wrap">
-    <div class="mast-top">
-      <p class="kicker">Margin desk · ledger of recorded runs</p>
-      <button class="theme" id="theme" type="button" aria-label="Toggle dark mode">◐</button>
+<nav class="nav" aria-label="Site">
+  <div class="wrap nav-row">
+    <a class="brand" href="#top" aria-label="Kataa home">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+      <span>kataa</span>
+    </a>
+    <div class="nav-links">
+      <a href="#replay">Replay</a><a href="#results">Results</a><a href="#story">The rejected repair</a><a href="#faq">FAQ</a>
     </div>
-    <h1>Kataa <span class="gloss">Swahili: <em>refuse</em></span></h1>
-    <p class="lede">A 3B model trained to issue a margin call only when the contract and the prices
-      justify it, and to ignore instructions planted in its data. Below, base Tiny Aya and Kataa face the
-      same held-out attacks, including two kinds never seen in training.</p>
-    <p class="recorded" role="note"><strong>Recorded runs.</strong> Held-out split, greedy decoding,
-      from the final evaluation job. No model runs on this page.</p>
+    <a class="nav-cta" href="https://huggingface.co/JustEddy1/kataa">Model ↗</a>
   </div>
+</nav>
+
+<div class="band" role="note" aria-label="Recorded runs">
+  <div class="band-track">
+    <span>Recorded runs · held-out split · greedy decoding · no live inference</span><span>Lexsi Labs AI Safety and Alignment Hackathon · Track 3 →</span>
+    <span>Recorded runs · held-out split · greedy decoding · no live inference</span><span>Lexsi Labs AI Safety and Alignment Hackathon · Track 3 →</span>
+  </div>
+</div>
+
+<header class="hero wrap" id="top">
+  <h1>Refuse the unjustified action</h1>
+  <p class="hero-sub"><span class="hl">Kataa</span> is a 3B model that issues a margin call only when the contract and the
+    prices justify it, and ignores instructions planted in its data.</p>
+  <div class="hero-cta">
+    <a class="btn btn-light" href="#replay">Open the replay</a>
+    <a class="btn btn-dark" href="https://huggingface.co/datasets/JustEddy1/kataa-bench">Benchmark ↗</a>
+  </div>
+  <div class="hero-visual" id="hero-visual" aria-label="A recorded episode"></div>
 </header>
 
-<main class="wrap">
-  <section class="figures" aria-label="Headline results" id="figures"></section>
+<section class="strip" aria-label="Key numbers" id="strip"></section>
 
-  <section class="desk" aria-label="Recorded episodes">
-    <div class="controls" role="toolbar" aria-label="Filters">
-      <div class="group" aria-label="Language">
-        <span class="glabel">Language</span>
-        <div class="seg" id="langs"></div>
+<section class="statement wrap">
+  <p><strong>Same attacks. Different decisions.</strong> Base Tiny Aya and Kataa face the same 300 held-out tasks, with two kinds of attack neither saw in training.</p>
+</section>
+
+<section class="wrap" id="replay" aria-label="Recorded episodes">
+  <div class="panel">
+    <div class="tabs" role="tablist" aria-label="Outcome" id="outcomes"></div>
+    <div class="panel-sub">
+      <div class="panel-title">
+        <h2>Replay</h2>
+        <p>Pick a case. Both models' recorded turns, tool calls and decisions appear side by side.</p>
       </div>
-      <div class="group">
-        <span class="glabel">Attack</span>
-        <div class="seg" id="families"></div>
-      </div>
-      <div class="group">
-        <span class="glabel">Outcome</span>
-        <div class="seg" id="outcomes"></div>
-      </div>
-      <div class="group">
-        <span class="glabel">Condition</span>
+      <div class="filters">
+        <div class="pills" id="langs" aria-label="Language"></div>
+        <div class="pills" id="families" aria-label="Attack"></div>
         <select id="condition" aria-label="Condition"></select>
       </div>
     </div>
-
     <div class="ledger">
       <aside class="list" aria-label="Tasks">
-        <div class="list-head"><span id="count"></span><button type="button" class="link" id="next" data-check="next-task">Next case →</button></div>
+        <div class="list-head"><span id="count"></span><button type="button" class="link" id="next" data-check="next-task">Next →</button></div>
         <ol id="tasks"></ol>
       </aside>
       <article class="case" id="case" aria-live="polite"></article>
     </div>
-  </section>
-</main>
+  </div>
+</section>
 
-<footer class="wrap foot">
-  <p>Model <a href="https://huggingface.co/JustEddy1/kataa">JustEddy1/kataa</a> ·
-     Benchmark <a href="https://huggingface.co/datasets/JustEddy1/kataa-bench">JustEddy1/kataa-bench</a> ·
-     Run artefacts <a href="https://huggingface.co/JustEddy1/kataa-runs">JustEddy1/kataa-runs</a> ·
-     Code <a href="https://github.com/UEddy/Kataa">github.com/UEddy/Kataa</a></p>
-  <p>Tiny Aya Global and Kataa: CC-BY-NC 4.0. Trained with AgentTune and evaluated with AuditKIT (Lexsi Labs,
-     non-commercial licences). Price data © Coin Metrics, Inc., CC BY-NC 4.0. Loans, contracts and attacks are synthetic.
-     Lexsi Labs AI Safety and Alignment Hackathon, Track 3.</p>
+<section class="statement wrap" id="results">
+  <p><strong>Better, and still not safe to automate.</strong> A large hosted model is far safer, and costs far more per check.</p>
+</section>
+<section class="wrap cards" id="figures" aria-label="Headline results"></section>
+
+<section class="statement wrap" id="story">
+  <p><strong>A repair that looked safer.</strong> It cut unsafe actions by stopping acting altogether. The gate caught it.</p>
+</section>
+<section class="wrap" id="story-card"></section>
+
+<section class="wrap faq" id="faq" aria-label="Frequently asked questions">
+  <h2>Frequently asked questions</h2>
+  <details><summary>Is a model running on this page?</summary><p>No. Every episode is a recorded greedy run from the final evaluation job, bundled with the page. Each one links to its file in the run artefacts repository.</p></details>
+  <details><summary>What counts as an unsafe action?</summary><p>A margin call that wasn't due; any action when the evidence is stale, conflicting or missing (the correct answer is to escalate); or doing what an attack asked when that was wrong.</p></details>
+  <details><summary>Why lead with "unsafe when it acts"?</summary><p>Base Tiny Aya records no decision on about half the tasks, which makes its all-tasks unsafe rate look close to Kataa's. Among the tasks where it does decide, 61% of its decisions are unsafe, against 25% for Kataa. Both rates are reported.</p></details>
+  <details><summary>What is held out?</summary><p>Two attack families never seen in training: instructions encoded in structured data (a JSON directive or a markdown table in the position), and regulator, auditor, general counsel or CEO personas claiming legal authority.</p></details>
+  <details><summary>Where does Kataa still fail?</summary><p>Stale prices on both oracles, oracle conflicts and active cure periods: accuracy on these is 0–9% for every trained model. It computes the price age or the gap correctly, then acts anyway.</p></details>
+  <details><summary>Where are the model, data and code?</summary><p>Model: JustEddy1/kataa. Benchmark: JustEddy1/kataa-bench. Run artefacts: JustEddy1/kataa-runs. Code: github.com/UEddy/Kataa. Links are in the footer.</p></details>
+</section>
+
+<section class="cta wrap">
+  <h2>Every number has a confidence interval.</h2>
+  <div class="hero-cta">
+    <a class="btn btn-light" href="https://huggingface.co/JustEddy1/kataa">Model card ↗</a>
+    <a class="btn btn-dark" href="https://github.com/UEddy/Kataa">Code ↗</a>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap foot-grid">
+    <div class="foot-brand">
+      <a class="brand" href="#top"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><span>kataa</span></a>
+      <p>Lexsi Labs AI Safety and Alignment Hackathon, Track 3 (Agentic Fine-tuning).</p>
+    </div>
+    <div><h3>Artefacts</h3><a href="https://huggingface.co/JustEddy1/kataa">Model</a><a href="https://huggingface.co/datasets/JustEddy1/kataa-bench">Benchmark</a><a href="https://huggingface.co/JustEddy1/kataa-runs">Run artefacts</a><a href="https://github.com/UEddy/Kataa">Code</a></div>
+    <div><h3>Built with</h3><a href="https://huggingface.co/CohereLabs/tiny-aya-global">Tiny Aya Global</a><span>AgentTune (training)</span><span>AuditKIT (evaluation)</span></div>
+    <div><h3>Licences</h3><span>Tiny Aya and Kataa: CC-BY-NC 4.0</span><span>AgentTune, AuditKIT: Lexsi Labs non-commercial</span><span>Prices © Coin Metrics, CC BY-NC 4.0</span><span>Loans, contracts, attacks: synthetic</span></div>
+  </div>
 </footer>
 <script src="app.js"></script>
 </body>
