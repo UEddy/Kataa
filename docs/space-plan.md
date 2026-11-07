@@ -50,6 +50,26 @@ Size budget: the recorded held-out trajectories for two models are about 2.5 MB 
 trimming. Agreement text is stored once per task, not once per model. The target is under 10 MB
 total, loaded lazily per task.
 
+## Before it goes live: everything loads for a logged-out visitor (Eddy, 2026-11-07)
+
+1. **Bundle the replay data into the Space.** The page loads only files served by the Space
+   itself: no fetches from `kataa-runs` or `kataa-bench` at runtime, so the demo works whatever
+   visibility those repos have.
+2. **Make the linked repos public at the same time.** Every outbound link (the
+   `kataa-runs` Hub file each episode came from, `datasets/JustEddy1/kataa-bench`,
+   `JustEddy1/kataa`, the Article) must resolve for a logged-out visitor, so `kataa-runs`,
+   `kataa-bench` and `kataa` are switched to public when the Space is created, with Eddy's OK at
+   that moment. The token-scoped repos contain no secrets (checked before the switch: a scan of
+   every file for token-shaped strings, and a review of `code/*.tar.gz` contents).
+3. **Test logged out.** `scripts/check_space_public.py` (cloud session):
+   - fetches every Space file and every outbound link with **no credentials** (no token, no
+     cookies) and requires HTTP 200 (following redirects), so a gated or private repo fails the
+     check;
+   - opens the Space in a fresh Playwright Chromium context (no cookies, no storage), loads a
+     sample of tasks in each language and filter, and fails on any console error, failed
+     network request or missing element; it takes desktop and phone-width screenshots for Eddy.
+   The Space is announced only after this passes.
+
 ## Deviation from the brief
 
 The brief says a judge can "pick **or paste** a poisoned feed". Pasting would need live
