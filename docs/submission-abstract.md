@@ -35,8 +35,8 @@ not act autonomously; its use is as a cheap first-pass checker that gathers the 
 every decision to a human.
 
 **AuditKIT.** Verified outcomes agree with our scorer on every Tiny Aya task; tool-call F1 against
-the ideal run is 0.85 for Kataa and 0.13 for base. We found and disclosed a bug in `ak.compare`'s
-significance test and used our own paired bootstrap instead.
+the ideal run is 0.85 for Kataa and 0.13 for base. We hit a known bug in `ak.compare`'s significance
+test (AuditKIT issue #20, since fixed upstream) and used our own paired bootstrap instead.
 
 Write-up: https://github.com/UEddy/Kataa#readme
 Replay Space (recorded runs): https://huggingface.co/spaces/JustEddy1/kataa-demo

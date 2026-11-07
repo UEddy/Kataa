@@ -292,8 +292,9 @@ it against the ground truth. Tool and trace scores are diagnostics.
 `RunComparison.significance()` resamples the raw paired differences without centring them under
 the null, so it returns p ≈ 0.5 for any effect, and p = 1.0, "not significant", when every pair
 improves. We record its p-values but use none of them; every confidence interval in this article
-comes from our own paired bootstrap, run on the same AuditKIT verdicts. A test pins the behaviour,
-and we are reporting it upstream with a minimal reproduction and a one-line fix.
+comes from our own paired bootstrap, run on the same AuditKIT verdicts. This is a known bug
+([AuditKIT issue #20](https://github.com/Lexsi-Labs/AuditKIT/issues/20)), fixed upstream after the pinned 1.1.3; its p-values are recorded but
+not used, and a test pins the behaviour.
 
 ## 7. Why these metrics, this data and this model
 

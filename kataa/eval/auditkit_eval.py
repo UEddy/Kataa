@@ -24,7 +24,8 @@ Two parts, both with AuditKIT (Track 3's evaluation library):
    paired deltas. Its p-values are reported but NOT used for any claim: at the pinned AuditKIT
    commit (71316da) `auditkit._bootstrap.paired_bootstrap` does not centre the resampled
    differences under the null, so p is about 0.5 for any effect and 1.0 when every pair improves
-   (`tests/test_auditkit_eval.py` pins this). Significance claims use `kataa.eval.stats`
+   (`tests/test_auditkit_eval.py` pins this). This is a known bug (AuditKIT issue #20), fixed
+   upstream after the pinned 1.1.3; we stay on 1.1.3. Significance claims use `kataa.eval.stats`
    (paired bootstrap CIs, docs/results.md).
 
 Translated sets use the exclusion rule (`data/translations/exclusions.json`). Mistral is
@@ -304,7 +305,9 @@ def write_report(results: dict, comps: list[dict], out: Path) -> None:
           "are not usable**: at the pinned AuditKIT commit `paired_bootstrap` resamples the raw "
           "paired differences without centring them under the null, so p is about 0.5 for any "
           "effect and 1.0 when every pair improves (pinned in `tests/test_auditkit_eval.py`). "
-          "They are shown for the record; the 95% CIs beside them are Kataa's paired bootstrap "
+          "This is a known bug ([AuditKIT issue #20](https://github.com/Lexsi-Labs/AuditKIT/issues/20)), fixed upstream after the pinned "
+          "1.1.3; its p-values are recorded but not used. "
+          "The 95% CIs beside them are Kataa's paired bootstrap "
           "(`kataa.eval.stats`, 10,000 resamples) on the same AuditKIT verdicts. "
           "Translated sets exclude the task IDs in `data/translations/exclusions.json`. "
           "`dpo_rejected` is the DPO repair the gate rejected, shown for the record.\n",

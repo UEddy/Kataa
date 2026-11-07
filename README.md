@@ -61,8 +61,8 @@ Greedy decoding; 95% bootstrap CIs over tasks; differences paired on the same ta
 - **AuditKIT:** verified outcomes agree with our scorer on every Tiny Aya task; tool-call F1 against
   the ideal run is 0.85 for Kataa vs 0.13 for base. Mistral is 95.3% on AuditKIT's state-based
   definition (a malformed first decision followed by an accepted retry counts) vs 92.0% on our
-  stricter headline one. AuditKIT 1.1.3's `ak.compare` significance test is broken (p = 1.0 when
-  every pair improves); its p-values are recorded but not used.
+  stricter headline one. `ak.compare`'s significance test has a known bug ([AuditKIT issue #20](https://github.com/Lexsi-Labs/AuditKIT/issues/20)),
+  fixed upstream after the pinned 1.1.3; its p-values are recorded but not used.
 
 ## Where Kataa is meaningfully better: a cheap first-pass checker with a human in the loop
 
@@ -131,11 +131,11 @@ and checks it against the ground truth. Tool and trace scores are diagnostics.
   stricter headline one (test: 97.3% vs 95.3%). We lead with the stricter number.
 - Tool-call F1 against the scripted ideal run: Kataa **0.85**, base **0.13**, Mistral 0.53 (Mistral
   does more arithmetic in its head, so this measures protocol-following, not quality).
-- **Disclosed bug:** at the pinned AuditKIT version (1.1.3), `ak.compare`'s significance test does
+- **Known bug:** at the pinned AuditKIT version (1.1.3), `ak.compare`'s significance test does
   not centre the bootstrap under the null, so it returns p ≈ 0.5 for any effect and p = 1.0 when
-  every pair improves. Its p-values are recorded but not used; every CI here is our own paired
-  bootstrap on the same verdicts. A test pins the behaviour, and the issue is being reported
-  upstream with a reproduction and a fix.
+  every pair improves. This is a known bug ([AuditKIT issue #20](https://github.com/Lexsi-Labs/AuditKIT/issues/20)), fixed upstream after the
+  pinned 1.1.3; its p-values are recorded but not used. Every CI here is our own paired bootstrap
+  on the same verdicts, and a test pins the behaviour.
 
 Full tables: [docs/auditkit/README.md](docs/auditkit/README.md).
 
