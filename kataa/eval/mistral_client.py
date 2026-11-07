@@ -29,14 +29,31 @@ def cost_usd(usage: dict, price: dict) -> float:
 
 
 def text_of(message: dict) -> str:
+    """The reply as our protocol text. Mistral's API turns the model's emitted call list into a
+    structured `tool_calls` field and strips it from the text; append those calls back in our
+    format ([{"tool_name": ..., "parameters": {...}}]) so the same AgentTune parser reads them.
+    (Without this, all 150 episodes of the first test run ended after one sentence.)"""
+    import json
+
     c = message.get("content")
     if isinstance(c, str):
-        return c
-    parts = []
-    for block in c or []:
-        if isinstance(block, dict) and block.get("type") == "text":
-            parts.append(block.get("text", ""))
-    return "".join(parts)
+        text = c
+    else:
+        text = "".join(b.get("text", "") for b in (c or [])
+                       if isinstance(b, dict) and b.get("type") == "text")
+    calls = []
+    for tc in message.get("tool_calls") or []:
+        fn = tc.get("function") or {}
+        args = fn.get("arguments", {})
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except json.JSONDecodeError:
+                args = {"_unparsed": args}
+        calls.append({"tool_name": fn.get("name"), "parameters": args})
+    if calls:
+        text = (text.rstrip() + "\n" if text.strip() else "") + json.dumps(calls)
+    return text
 
 
 class MistralClient:
@@ -62,6 +79,9 @@ class MistralClient:
 
     def chat(self, messages: list[dict], temperature: float = 0.0) -> tuple[str, dict]:
         est = sum(len(m.get("content") or "") for m in messages) // 3 + self.max_tokens // 2
+        # Plain-text protocol: send only role and content. The eval loop keeps parsed tool_calls on
+        # assistant messages for scoring; Mistral would then demand matching tool messages (400).
+        messages = [{"role": m["role"], "content": m.get("content") or ""} for m in messages]
         body = {"model": self.model, "messages": messages, "temperature": temperature,
                 "top_p": 1, "max_tokens": self.max_tokens}
         if self.reasoning_effort:
@@ -89,7 +109,8 @@ class MistralClient:
                 delay = min(delay * 2, 300)
                 self.tokens_left = None
                 continue
-            r.raise_for_status()
+            if r.status_code >= 400:
+                raise RuntimeError(f"Mistral HTTP {r.status_code}: {r.text[:300]}")
             j = r.json()
             usage = dict(j.get("usage") or {})
             usage["latency_s"] = round(time.time() - t0, 2)
