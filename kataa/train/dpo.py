@@ -147,6 +147,73 @@ def filter_by_length(rows: list[dict], tok, max_tokens: int = MAX_PAIR_TOKENS):
     return kept, dropped
 
 
+_FULL_IDS = "kataa_full_input_ids"
+
+
+def install_completion_only_logits(trainer_cls=None, model_cls=None) -> None:
+    """Compute logits only from the position before the first completion token (job 6aef03f2 ran
+    out of memory without this).
+
+    TRL 1.7.1's DPOTrainer._compute_loss takes full-length logits from the policy and the
+    reference pass, then masks everything but the completion. With ~4.5K-token prompts and Tiny
+    Aya's 262K vocabulary that is ~4.7 GB of bf16 logits per pass, plus their fp32 log-softmax
+    and gradients. Here, before the original _compute_loss runs:
+      - the full input_ids go to the model under a side key, with logits_to_keep=M, so the model
+        still attends over the whole prompt but projects only the last M positions to the
+        vocabulary (M = L - c + 1, c = first completion index in the batch);
+      - TRL's loss code gets input_ids[:, c-1:] and completion_mask[:, c-1:], which line up with
+        those M logits exactly as the full tensors would (shift by one, masked to completion).
+    The loss, the SFT term and the logged metrics are unchanged (tests/test_dpo.py checks this
+    against the unpatched trainer). attention_mask is left full-length for the model.
+    """
+    from trl import DPOTrainer
+
+    trainer_cls = trainer_cls or DPOTrainer
+    if getattr(trainer_cls, "_kataa_completion_only", False):
+        return
+    orig_loss = trainer_cls._compute_loss
+
+    def _compute_loss(self, model, inputs, return_outputs):
+        ids, cm = inputs["input_ids"], inputs["completion_mask"]
+        has = cm.bool().any(dim=1)
+        if not bool(has.all()):
+            return orig_loss(self, model, inputs, return_outputs)
+        c = int(cm.float().argmax(dim=1).min())  # first completion index across the batch
+        if c < 1:
+            return orig_loss(self, model, inputs, return_outputs)
+        inputs = dict(inputs)
+        inputs[_FULL_IDS] = ids
+        inputs["input_ids"] = ids[:, c - 1:]
+        inputs["completion_mask"] = cm[:, c - 1:]
+        return orig_loss(self, model, inputs, return_outputs)
+
+    trainer_cls._compute_loss = _compute_loss
+    trainer_cls._kataa_completion_only = True
+
+    def wrap_forward(cls):
+        if getattr(cls, "_kataa_completion_only", False):
+            return
+        orig_fwd = cls.forward
+
+        def forward(self, *args, **kwargs):
+            full = kwargs.pop(_FULL_IDS, None)
+            if full is not None:
+                kept = kwargs["input_ids"].shape[1]
+                kwargs["input_ids"] = full
+                kwargs["logits_to_keep"] = kept
+                out = orig_fwd(self, *args, **kwargs)
+                assert out.logits.shape[1] == kept, (out.logits.shape, kept)
+                return out
+            return orig_fwd(self, *args, **kwargs)
+
+        cls.forward = forward
+        cls._kataa_completion_only = True
+
+    if model_cls is None:
+        from transformers.models.cohere2.modeling_cohere2 import Cohere2ForCausalLM as model_cls
+    wrap_forward(model_cls)
+
+
 def read_jsonl(p) -> list[dict]:
     return [json.loads(x) for x in Path(p).open()]
 
@@ -206,6 +273,7 @@ def main() -> int:
     from kataa.train.hub import sync_callback
     from kataa.train.sft import LORA
 
+    install_completion_only_logits()
     lm = AutoModelForCausalLM.from_pretrained(args.model, dtype=torch.bfloat16)
     trainer = create_agentic_trainer(
         "dpo", backend="trl",

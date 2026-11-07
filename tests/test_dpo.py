@@ -181,3 +181,79 @@ def test_pair_tokenization_matches_trl():
     assert kept == [] and dropped == len(pairs)
     kept, dropped = filter_by_length(pairs, tok)
     assert dropped == 0 and len(kept) == len(pairs)
+
+
+def test_completion_only_logits_matches_trl():
+    """The memory fix (logits only from the first completion position) gives the same loss and
+    metrics as TRL's unpatched _compute_loss, for policy and reference passes, with the SFT term."""
+    import torch
+    from datasets import Dataset
+    from peft import LoraConfig
+    from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
+    from transformers.models.cohere2.modeling_cohere2 import Cohere2ForCausalLM
+    from trl import DPOTrainer
+
+    from agenttune.agentic import build_dataset
+    from agenttune.core.backend_factory import create_agentic_trainer
+    from kataa.train.common import BASE_MODEL
+    from kataa.train.dpo import install_completion_only_logits
+    from kataa.train.sft import LORA
+
+    recs = [r for r in train_records(1) if r["answer"] != "margin_call"][:2]
+    rows, trajs = run(recs, unsafe_policy(recs))
+    pairs = build_dataset(build_examples(load_split("train"), rows, trajs)[0])
+    for p in pairs:  # shorter prompts so the unpatched pass fits CPU memory
+        p["prompt"] = [p["prompt"][0] | {"content": p["prompt"][0]["content"][:400]},
+                       p["prompt"][-1] | {"content": p["prompt"][-1]["content"][:400]}]
+    tok = AutoTokenizer.from_pretrained(BASE_MODEL)
+    cfg = AutoConfig.from_pretrained(BASE_MODEL)
+    cfg.update(dict(hidden_size=32, intermediate_size=64, num_hidden_layers=2,
+                    num_attention_heads=2, num_key_value_heads=1, head_dim=16,
+                    layer_types=["sliding_attention", "full_attention"]))
+    torch.manual_seed(0)
+    lm = AutoModelForCausalLM.from_config(cfg)
+    wrapper = create_agentic_trainer(
+        "dpo", backend="trl", model=lm, processing_class=tok, train_dataset=Dataset.from_list(pairs),
+        peft_config=LoraConfig(**LORA), output_dir="/tmp/kataa-dpo-eq", beta=0.1,
+        loss_type=["sigmoid", "sft"], loss_weights=[1.0, 0.2], max_length=None,
+        per_device_train_batch_size=1, report_to=[], bf16=False, fp16=False, use_cpu=True)
+    wrapper.setup_data()
+    wrapper.setup_trainer()
+    tr = wrapper.trainer
+    # make the LoRA non-zero so policy != reference and the loss is not trivially log(2)
+    with torch.no_grad():
+        for n, prm in tr.model.named_parameters():
+            if "lora_B" in n:
+                prm.normal_(0, 0.05)
+    batch = next(iter(tr.get_train_dataloader()))
+    orig_loss, orig_fwd = DPOTrainer._compute_loss, Cohere2ForCausalLM.forward
+    try:
+        tr._metrics = {"train": __import__("collections").defaultdict(list)}
+        a = orig_loss(tr, tr.model, batch, False).item()
+        ma = {k: list(v) for k, v in tr._metrics["train"].items()}
+        install_completion_only_logits()
+        patched = Cohere2ForCausalLM.forward
+        seen = []
+
+        def spy(self, *args, **kw):
+            out = patched(self, *args, **kw)
+            seen.append((out.logits.shape[1], batch["input_ids"].shape[1]))
+            return out
+        Cohere2ForCausalLM.forward = spy
+        tr._metrics = {"train": __import__("collections").defaultdict(list)}
+        b = tr._compute_loss(tr.model, batch, False).item()
+        mb = {k: list(v) for k, v in tr._metrics["train"].items()}
+    finally:
+        DPOTrainer._compute_loss, Cohere2ForCausalLM.forward = orig_loss, orig_fwd
+        for cls in (DPOTrainer, Cohere2ForCausalLM):
+            if "_kataa_completion_only" in cls.__dict__:
+                delattr(cls, "_kataa_completion_only")
+    assert abs(a - b) < 1e-4 * max(1, abs(a)), (a, b)
+    assert abs(a - 0.6931) > 1e-3, "policy == reference: the comparison would be trivial"
+    assert any(k.startswith("rewards/") for k in ma) and set(ma) == set(mb)
+    assert seen and all(n < full for n, full in seen), seen  # patched pass really sliced
+    for k in ma:
+        if "logits" in k:  # mean logit over completion tokens: same tokens, same values
+            assert ma[k] == pytest.approx(mb[k], rel=1e-4, abs=1e-5), k
+        if k.startswith("rewards/") or k.startswith("logps/"):
+            assert ma[k] == pytest.approx(mb[k], rel=1e-4, abs=1e-5), k

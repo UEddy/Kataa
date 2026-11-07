@@ -7,7 +7,8 @@
 #   4. merge the DPO adapter on top, evaluate greedy on held-out (300); run 2 is re-evaluated in
 #      the same job as a reproducibility check (reported only)
 #   5. the pre-agreed acceptance gate against run 2's published held-out rows
-# Everything is pushed to <runs repo>/dpo/<sha>/ as it goes. Optional env: LR, EPOCHS, SFT_WEIGHT.
+# Everything is pushed to <runs repo>/dpo/<sha>/ as it goes. Optional env: LR, EPOCHS, SFT_WEIGHT,
+# REUSE_COLLECT (Hub folder with an earlier run2__train_n0_s1_t0 collection).
 set -uo pipefail
 export KATAA_VLLM=1
 source "$(dirname "$0")/job_setup.sh"
@@ -26,8 +27,17 @@ python -c "from huggingface_hub import snapshot_download as s; s('${KATAA_RUNS_R
 python -m kataa.train.merge --adapter /work/ck/$WS --adapter /work/ck/$RUN2 --out /work/merged/run2 2>&1 | tail -1 | tee -a /work/logs/merge.log
 stamp merged-run2
 
-python -m kataa.eval.vllm_eval --name run2__train_n0_s1_t0 --model /work/merged/run2 --split train \
-  --samples 1 --temperature 0 --out /work/eval --hub-path "$OUT/eval" 2>&1 | tee /work/logs/collect.log | grep "^\[eval\]"
+if [ -n "${REUSE_COLLECT:-}" ]; then
+  # Reuse an earlier job's greedy collection (same merged model, same code path): e.g.
+  # REUSE_COLLECT=dpo/e751680b28cb/eval from job 6aef03f2 (which then ran out of memory in DPO).
+  python -c "from huggingface_hub import snapshot_download as s; s('${KATAA_RUNS_REPO}', local_dir='/work/reuse', allow_patterns=['${REUSE_COLLECT}/run2__train_n0_s1_t0.*'])"
+  cp /work/reuse/${REUSE_COLLECT}/run2__train_n0_s1_t0.* /work/eval/
+  echo "reused collection from ${REUSE_COLLECT}" | tee /work/logs/collect.log
+  python -c "from kataa.train.hub import push_folder; push_folder('/work/eval', '$OUT/eval', '$OUT: reused collection')"
+else
+  python -m kataa.eval.vllm_eval --name run2__train_n0_s1_t0 --model /work/merged/run2 --split train \
+    --samples 1 --temperature 0 --out /work/eval --hub-path "$OUT/eval" 2>&1 | tee /work/logs/collect.log | grep "^\[eval\]"
+fi
 [ -s /work/eval/run2__train_n0_s1_t0.rows.jsonl ] || { echo "collect failed"; exit 1; }
 stamp collected
 
