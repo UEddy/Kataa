@@ -39,7 +39,9 @@ Greedy decoding; 95% bootstrap CIs over tasks; differences paired on the same ta
   22.7%, +6.7 pp [+0.0, +13.3]), while unsafe among decided falls from 63.6% to 29.3%.
 - **Against Mistral Large 4** (a large hosted open-weights model, via API) on the same first 150
   held-out tasks: accuracy 70.0% vs 92.0%, unsafe 30.0% vs 2.7%; about $0.32 vs $11.72 per 1,000
-  checks. **Kataa should not act autonomously.**
+  checks. **Kataa should not act autonomously.** Its use is as a cheap first-pass checker: it
+  gathers the evidence (97.3%), writes its reasoning with every decision, and routes each
+  proposed decision to a human (see the Article, section 2).
 - **RL was a null result:** runs 1 and 2 beat the warm start by about +5 pp accuracy and −3 pp
   unsafe on held-out, and are indistinguishable from each other.
 - **The rejected repair:** DPO on Kataa's 284 unsafe train-split decisions cut unsafe to 15.0%

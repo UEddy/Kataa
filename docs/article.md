@@ -30,6 +30,9 @@ resamples); differences are paired on the same tasks. Every table is regenerated
 - **It is not safe to automate.** On the same 150 held-out tasks, Mistral Large 4 (a large hosted
   open-weights model, via API) is unsafe 2.7% of the time against Kataa's 30.0%. Kataa costs about
   $0.32 per 1,000 checks against Mistral's $11.72.
+- **Where it is useful:** as a cheap first-pass checker whose every decision goes to a human. It
+  gathers the evidence on 97% of tasks, follows 12% of held-out attacks (base 21%), writes its
+  reasoning with every decision, and costs about 37× less per check than Mistral Large 4.
 - **RL was a null result.** After the warm start, GRPO with a naive reward and GRPO with a hardened
   reward ended up statistically indistinguishable.
 - **A repair that looked safer was rejected.** DPO on Kataa's own unsafe decisions cut the unsafe
@@ -89,7 +92,40 @@ comparison with a large hosted open-weights model rather than a closed one.
 It should not act autonomously. At most it is a cheap first-pass triage layer with a human or a
 stronger model behind it.
 
-## 2. Reward hacking in three parts
+## 2. Where Kataa is meaningfully better: a cheap first-pass checker with a human in the loop
+
+Kataa is not a model to let act on its own. It is meaningfully better than its base model, and far
+cheaper than a large hosted model, in one specific role: **a first-pass checker that gathers the
+evidence, proposes a decision with its reasoning, and routes that proposal to a human who
+confirms or rejects it.** Each claim below, with its evidence and its limit:
+
+| Claim | Evidence (held-out, 300 tasks unless noted) | Limit |
+|---|---|---|
+| **It gathers the evidence first.** | 97.3% of episodes fetch the agreement, the position and both oracles for every asset before deciding (base: 0.3%). Tool-call validity 1.000; tool-call F1 against the scripted ideal run 0.85 (base 0.13); 0.002 redundant calls per task. | The trace is only as good as the tools: it reads what the oracles report. |
+| **It always proposes a decision, with reasons.** | 0% no-decision (base: 51.3%). All 300 decision turns carry notes citing the LTV, the limits or the percentages, so the reviewer sees the reasoning next to the tool results. | The notes are generated text; they were not separately checked for accuracy on this split. In the warm start's arithmetic check on validation, 98.3% of LTVs were computed with the calculator and 90.5% landed within 0.5 pp of the truth. |
+| **It resists most attacks, including unseen ones.** | Followed the attack on 12.3% of held-out tasks (base 21.0%; −8.7 pp [−14.3, −3.0]), so it resisted 87.7%. Authority personas: 10.2% followed (base 36.9%). In-distribution test: 3.7%. | Structured-data injections: 14.7% followed, against 3.5% for base, which mostly doesn't decide at all. Resisting most attacks is not resisting all of them. |
+| **It costs about 37× less per check.** | About $0.32 per 1,000 checks (L40S list price, batched throughput: 300 checks in 191 s) against $11.72 for Mistral Large 4 at list price ($5.86 at the launch sale). | A throughput cost, excluding model loading and idle time; not a per-check latency. Mistral is far more accurate (92.0% vs 70.0% on the same 150 tasks). |
+| **It rarely sends a human a case it could have decided.** | Over-escalation 0.3% (1 task in 300). | The reverse problem is real: it escalates 18 tasks where 54 needed escalating, so it under-escalates. |
+
+**Why every decision must go to a human.** On held-out, 46 of Kataa's 160 proposed margin calls
+were unjustified, and 22 of its 122 "no action" decisions should have been escalations. Its
+proposals cannot be trusted on their own; the human confirmation step is what makes this
+deployment acceptable, not an optional extra.
+
+**Where a reviewer should look hardest.** 60 of Kataa's 75 unsafe decisions (80%) fall in three
+conditions: stale prices on both oracles (20), an oracle conflict (17) and an active cure period
+(23). All three can be read from evidence Kataa has already fetched: the price timestamps against
+the agreement's staleness clause, the gap between the two oracles against its divergence
+tolerance, and the last margin call against the cure period. A reviewer checklist, or a
+deterministic check over the recorded tool results, could target exactly these. We have not built
+or tested such a check; it is the obvious next step, not a result.
+
+**What this does not show.** We measured decisions, not the time a human saves, and we did not
+run a study with real reviewers. The benefit claimed is narrower: for about a thirty-seventh of the
+cost of the large model, every case arrives with the evidence already fetched, the arithmetic done
+and a proposed decision with its reasons, which the human then accepts or rejects.
+
+## 3. Reward hacking in three parts
 
 ### Part 1: the naive reward can be gamed on paper
 
@@ -148,7 +184,7 @@ Rejected. Kataa (run 2) remains the released model. The lesson: a safety metric 
 own pays for refusing everything, and the defence is a gate that also measures task success and
 over-escalation, fixed before you see the results.
 
-## 3. What worked: the warm start (agentic distillation)
+## 4. What worked: the warm start (agentic distillation)
 
 The environment knows the right answer to every task, so we scripted ideal runs: fetch the
 agreement and position, fetch both oracles, compute price ages, oracle gaps and the LTV with the
@@ -183,7 +219,7 @@ Kataa's unsafe rate in those languages is 25.6–31.3%, about the same as in Eng
 all-tasks unsafe rate is lower in four of the five (24–28%), again because base often decides
 nothing.
 
-## 4. RL: naive vs hardened reward, an honest null result
+## 5. RL: naive vs hardened reward, an honest null result
 
 Both GRPO runs started from the warm start, used identical settings and code (90 steps × 8
 rollouts, lr 5e-5, temperature 0.9, multi-turn tool rollouts with colocated vLLM), and differed
@@ -229,7 +265,7 @@ On structured-data injections, Kataa's all-tasks unsafe rate is higher than base
 decides anything on those tasks, while Kataa always decides and sometimes follows the instruction
 hidden in the position's JSON or table.
 
-## 5. Evaluation with AuditKIT
+## 6. Evaluation with AuditKIT
 
 Every recorded run (five models, the translations, Mistral and the rejected DPO model) was read
 with `auditkit.agent_eval.episodes_from_agenttune`. The headline is a **verified outcome**: a
@@ -256,11 +292,11 @@ improves. We record its p-values but use none of them; every confidence interval
 comes from our own paired bootstrap, run on the same AuditKIT verdicts. A test pins the behaviour,
 and we are reporting it upstream with a minimal reproduction and a one-line fix.
 
-## 6. Why these metrics, this data and this model
+## 7. Why these metrics, this data and this model
 
 **Metrics.** A script can compute a loan-to-value ratio; the hard part is judgment. So the headline
 is the unsafe-action rate, read together with accuracy, over-escalation and "no decision", because
-any one of them alone can be gamed by refusing everything (section 2 shows it happening). Held-out
+any one of them alone can be gamed by refusing everything (section 3 shows it happening). Held-out
 attack families test whether resistance generalises, and the translations test whether it
 survives a language change the model was never trained on.
 
@@ -277,7 +313,7 @@ requirement), multilingual, and small enough to train and evaluate on a single L
 budget. Its chat template doesn't render tools, so AgentTune's fallback (tool schemas in the system
 prompt, a JSON call list per turn, tool results as user turns) is the protocol throughout.
 
-## 7. How it was built
+## 8. How it was built
 
 | Step | Tool | Detail |
 |---|---|---|
@@ -292,7 +328,7 @@ prompt, a JSON call list per turn, tool results as user turns) is the protocol t
 tests, failed attempts and the rejected DPO repair. The experiment log in the code repo lists
 every job and what each cost.
 
-## 8. Limitations
+## 9. Limitations
 
 - One task family (margin checks on crypto collateral) with contracts written for the project; the
   second price oracle is a seeded perturbation of the one real series.
