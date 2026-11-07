@@ -72,7 +72,8 @@ class MistralClient:
             t0 = time.time()
             try:
                 r = self.http.post(API, json=body)
-            except httpx.HTTPError:
+            except httpx.HTTPError as e:
+                print(f"[mistral] attempt {attempt + 1}: {type(e).__name__}", flush=True)
                 time.sleep(delay)
                 delay = min(delay * 2, 300)
                 continue
@@ -83,6 +84,7 @@ class MistralClient:
                 self.tokens_left = left
                 self.reqs_left = int(r.headers.get("x-ratelimit-remaining-req-minute", 50))
             if r.status_code == 429 or r.status_code >= 500:
+                print(f"[mistral] attempt {attempt + 1}: HTTP {r.status_code} {r.text[:120]}", flush=True)
                 time.sleep(delay)
                 delay = min(delay * 2, 300)
                 self.tokens_left = None
