@@ -25,7 +25,8 @@ this Space**: every episode is a greedy run from the final evaluation job, bundl
 
 Model: [JustEddy1/kataa](https://huggingface.co/JustEddy1/kataa) ·
 Benchmark: [JustEddy1/kataa-bench](https://huggingface.co/datasets/JustEddy1/kataa-bench) ·
-Code: [github.com/UEddy/Kataa](https://github.com/UEddy/Kataa)
+Code: [github.com/UEddy/Kataa](https://github.com/UEddy/Kataa) ·
+Write-up: [README](https://github.com/UEddy/Kataa#readme) (official), [long form](https://github.com/UEddy/Kataa/blob/main/docs/article.md)
 
 Licences: Tiny Aya and Kataa are CC-BY-NC; AgentTune and AuditKIT are Lexsi Labs' non-commercial
 licences; price data © Coin Metrics, Inc., CC BY-NC 4.0.

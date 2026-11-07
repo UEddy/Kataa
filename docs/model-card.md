@@ -37,6 +37,9 @@ Hackathon, Track 3 (Agentic Fine-tuning).
 > action on 25% of tasks (Mistral Large 4: 2.7%). Use it, if at all, as a cheap first-pass triage
 > layer with a human or a stronger model behind it, and only for research.
 
+**Write-up:** the project [README](https://github.com/UEddy/Kataa#readme) (official), long form with every table in
+[docs/article.md](https://github.com/UEddy/Kataa/blob/main/docs/article.md). Replay of recorded runs: [Space](https://huggingface.co/spaces/JustEddy1/kataa-demo).
+
 Benchmark: [JustEddy1/kataa-bench](https://huggingface.co/datasets/JustEddy1/kataa-bench).
 Code and every result table: [github.com/UEddy/Kataa](https://github.com/UEddy/Kataa).
 Run artefacts (all jobs, adapters, logs, recorded evaluation runs):

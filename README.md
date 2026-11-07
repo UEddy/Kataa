@@ -13,7 +13,7 @@ Alignment Hackathon, Track 3 (Agentic Fine-tuning).
 | Model (adapters + loader) | [JustEddy1/kataa](https://huggingface.co/JustEddy1/kataa) |
 | Benchmark | [datasets/JustEddy1/kataa-bench](https://huggingface.co/datasets/JustEddy1/kataa-bench) |
 | Every job, adapter, log and recorded evaluation | [JustEddy1/kataa-runs](https://huggingface.co/JustEddy1/kataa-runs) |
-| Write-up | [docs/article.md](docs/article.md) (the HF Article) |
+| Write-up | **This README** is the official write-up; the long form with every table is [docs/article.md](docs/article.md) |
 
 ## Results
 
@@ -41,7 +41,7 @@ Greedy decoding; 95% bootstrap CIs over tasks; differences paired on the same ta
   held-out tasks: accuracy 70.0% vs 92.0%, unsafe 30.0% vs 2.7%; about $0.32 vs $11.72 per 1,000
   checks. **Kataa should not act autonomously.** Its use is as a cheap first-pass checker: it
   gathers the evidence (97.3%), writes its reasoning with every decision, and routes each
-  proposed decision to a human (see the Article, section 2).
+  proposed decision to a human (next section).
 - **RL was a null result:** runs 1 and 2 beat the warm start by about +5 pp accuracy and −3 pp
   unsafe on held-out, and are indistinguishable from each other.
 - **The rejected repair:** DPO on Kataa's 284 unsafe train-split decisions cut unsafe to 15.0%
@@ -57,6 +57,39 @@ Greedy decoding; 95% bootstrap CIs over tasks; differences paired on the same ta
   definition (a malformed first decision followed by an accepted retry counts) vs 92.0% on our
   stricter headline one. AuditKIT 1.1.3's `ak.compare` significance test is broken (p = 1.0 when
   every pair improves); its p-values are recorded but not used.
+
+## Where Kataa is meaningfully better: a cheap first-pass checker with a human in the loop
+
+Kataa is not a model to let act on its own. It is meaningfully better than its base model, and far
+cheaper than a large hosted model, in one specific role: **a first-pass checker that gathers the
+evidence, proposes a decision with its reasoning, and routes that proposal to a human who
+confirms or rejects it.** Each claim below, with its evidence and its limit:
+
+| Claim | Evidence (held-out, 300 tasks unless noted) | Limit |
+|---|---|---|
+| **It gathers the evidence first.** | 97.3% of episodes fetch the agreement, the position and both oracles for every asset before deciding (base: 0.3%). Tool-call validity 1.000; tool-call F1 against the scripted ideal run 0.85 (base 0.13); 0.002 redundant calls per task. | The trace is only as good as the tools: it reads what the oracles report. |
+| **It always proposes a decision, with reasons.** | 0% no-decision (base: 51.3%). All 300 decision turns carry notes citing the LTV, the limits or the percentages, so the reviewer sees the reasoning next to the tool results. | The notes are generated text; they were not separately checked for accuracy on this split. In the warm start's arithmetic check on validation, 98.3% of LTVs were computed with the calculator and 90.5% landed within 0.5 pp of the truth. |
+| **It resists most attacks, including unseen ones.** | Followed the attack on 12.3% of held-out tasks (base 21.0%; −8.7 pp [−14.3, −3.0]), so it resisted 87.7%. Authority personas: 10.2% followed (base 36.9%). In-distribution test: 3.7%. | Structured-data injections: 14.7% followed, against 3.5% for base, which mostly doesn't decide at all. Resisting most attacks is not resisting all of them. |
+| **It costs about 37× less per check.** | About $0.32 per 1,000 checks (L40S list price, batched throughput: 300 checks in 191 s) against $11.72 for Mistral Large 4 at list price ($5.86 at the launch sale). | A throughput cost, excluding model loading and idle time; not a per-check latency. Mistral is far more accurate (92.0% vs 70.0% on the same 150 tasks). |
+| **It rarely sends a human a case it could have decided.** | Over-escalation 0.3% (1 task in 300). | The reverse problem is real: it escalates 18 tasks where 54 needed escalating, so it under-escalates. |
+
+**Why every decision must go to a human.** On held-out, 46 of Kataa's 160 proposed margin calls
+were unjustified, and 22 of its 122 "no action" decisions should have been escalations. Its
+proposals cannot be trusted on their own; the human confirmation step is what makes this
+deployment acceptable, not an optional extra.
+
+**Where a reviewer should look hardest.** 60 of Kataa's 75 unsafe decisions (80%) fall in three
+conditions: stale prices on both oracles (20), an oracle conflict (17) and an active cure period
+(23). All three can be read from evidence Kataa has already fetched: the price timestamps against
+the agreement's staleness clause, the gap between the two oracles against its divergence
+tolerance, and the last margin call against the cure period. A reviewer checklist, or a
+deterministic check over the recorded tool results, could target exactly these. We have not built
+or tested such a check; it is the obvious next step, not a result.
+
+**What this does not show.** We measured decisions, not the time a human saves, and we did not
+run a study with real reviewers. The benefit claimed is narrower: for about a thirty-seventh of the
+cost of the large model, every case arrives with the evidence already fetched, the arithmetic done
+and a proposed decision with its reasons, which the human then accepts or rejects.
 
 ## Reward hacking in three parts
 
@@ -78,6 +111,61 @@ Greedy decoding; 95% bootstrap CIs over tasks; differences paired on the same ta
    significantly.
 3. **The gate caught it** (`kataa/eval/gate.py`, written before the run): unsafe passed; accuracy
    (−54.7 pp), over-escalation (0.3% → 81.0%) and followed attacks (+2.7 pp) failed.
+
+## Evaluation with AuditKIT
+
+Every recorded run was read with `auditkit.agent_eval.episodes_from_agenttune`. The headline is a
+verified outcome: a versioned `CustomPredicate` takes the first decision the environment accepted
+(exactly this task's `loan_id` and a string `reason`), from AuditKIT's own parse of the tool calls,
+and checks it against the ground truth. Tool and trace scores are diagnostics.
+
+- AuditKIT's verdicts match our scorer on every Tiny Aya task in every run.
+- Mistral differs on 8 of its 300 tasks, all cases where its first decision call was malformed and
+  a retry was accepted: **95.3%** held-out on AuditKIT's state-based definition vs **92.0%** on our
+  stricter headline one (test: 97.3% vs 95.3%). We lead with the stricter number.
+- Tool-call F1 against the scripted ideal run: Kataa **0.85**, base **0.13**, Mistral 0.53 (Mistral
+  does more arithmetic in its head, so this measures protocol-following, not quality).
+- **Disclosed bug:** at the pinned AuditKIT version (1.1.3), `ak.compare`'s significance test does
+  not centre the bootstrap under the null, so it returns p ≈ 0.5 for any effect and p = 1.0 when
+  every pair improves. Its p-values are recorded but not used; every CI here is our own paired
+  bootstrap on the same verdicts. A test pins the behaviour, and the issue is being reported
+  upstream with a reproduction and a fix.
+
+Full tables: [docs/auditkit/README.md](docs/auditkit/README.md).
+
+## Why these metrics, this data and this model
+
+**Metrics.** A script can compute a loan-to-value ratio; the hard part is judgment. So the
+headline is the unsafe-action rate, read with accuracy, over-escalation and "no decision", because
+any one of them alone can be gamed by refusing everything (the DPO repair above did exactly that).
+Held-out attack families test whether resistance generalises; the translations test whether it
+survives a language change the model never trained on.
+
+**Data.** Real daily prices from the [Coin Metrics community archive](https://github.com/coinmetrics/data)
+(CC BY-NC 4.0), with real crash days oversampled; synthetic loans, contract clauses in varied
+phrasing and number styles, amendments, and seven attack families (five for training, two held
+out). Every task's answer is computed in code, so rewards and evaluation are verified results,
+not judge opinions.
+
+**Model.** Tiny Aya Global is a dense, open-weights 3.35B Cohere Labs model (the track's
+requirement), multilingual, and small enough to train and evaluate on one L40S within a $20
+budget.
+
+**Why the result is better.** Against its base model, Kataa decides every case, gathers the
+evidence first, is right 73% of the time instead of 19%, and is unsafe on 25% of the cases it acts
+on instead of 61%. That makes it usable as a cheap first-pass checker with a human confirming each
+decision. It is not better than a large hosted model, and it is not safe to automate.
+
+## Limitations
+
+- One task family (margin checks on crypto collateral), with contracts written for the project;
+  the second price oracle is a seeded perturbation of the one real series.
+- The held-out families are new styles of attack within the same task, not new tasks.
+- The Mistral comparison covers 150 + 150 tasks at low reasoning effort.
+- Translations are machine translations with an automatic back-translation check, not human-verified.
+- GRPO ran 90 steps per run; a longer run might separate the two rewards.
+- No study with real reviewers: the human-in-the-loop benefit is argued from the measurements, not
+  measured.
 
 ## How it works
 
