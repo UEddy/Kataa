@@ -180,9 +180,22 @@ def main() -> int:
             for i in range(0, len(todo), args.batch):
                 src = todo[i:i + args.batch]
                 masked = [mask(x) for x in src]
-                fwd = [unmask(t, m) for t, (_, m) in
-                       zip(call_batch(client, [x for x, _ in masked], lang), masked)]
-                back = call_batch(client, fwd, "English")
+                try:
+                    fwd = [unmask(t, m) for t, (_, m) in
+                           zip(call_batch(client, [x for x, _ in masked], lang), masked)]
+                    back = call_batch(client, fwd, "English")
+                except RuntimeError as e:
+                    if len(src) > 1:
+                        raise
+                    # One item that keeps failing upstream: record it as failed; its task is
+                    # left out of the translated set and counted in the report.
+                    c = {"key": key(src[0]), "source": src[0], "translation": None, "back": None,
+                         "protected_lost": [], "back_overlap": 0.0, "failed": str(e)}
+                    cache[c["key"]] = c
+                    f.write(json.dumps(c, ensure_ascii=False) + "\n")
+                    f.flush()
+                    print(f"[{code}] FAILED item {key(src[0])}: {e}", flush=True)
+                    continue
                 for s, t, b in zip(src, fwd, back):
                     lost = sorted(set(PROTECT.findall(s)) - set(PROTECT.findall(t)))
                     c = {"key": key(s), "source": s, "translation": t, "back": b,
@@ -191,14 +204,16 @@ def main() -> int:
                     f.write(json.dumps(c, ensure_ascii=False) + "\n")
                 f.flush()
                 print(f"[{code}] {min(i + args.batch, len(todo))}/{len(todo)}", flush=True)
-        out = [apply(r, [cache[key(u)]["translation"] for u in units(r)], code) for r in recs]
+        kept = [r for r in recs if not any(cache[key(u)].get("failed") for u in units(r))]
+        out = [apply(r, [cache[key(u)]["translation"] for u in units(r)], code) for r in kept]
         with (ROOT / f"data/tasks_translated/heldout_{code}.jsonl").open("w") as f:
             f.writelines(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n" for r in out)
-        items = [cache[key(u)] for r in recs for u in units(r)]
+        items = [cache[key(u)] for r in kept for u in units(r)]
         ov = sorted(c["back_overlap"] for c in items)
         report[code] = {"items": len(items), "protected_lost": sum(bool(c["protected_lost"]) for c in items),
                         "back_overlap_median": ov[len(ov) // 2], "back_overlap_p10": ov[len(ov) // 10],
-                        "flagged_low_overlap": sum(o < 0.35 for o in ov)}
+                        "flagged_low_overlap": sum(o < 0.35 for o in ov),
+                        "tasks_written": len(kept), "tasks_failed": len(recs) - len(kept)}
         print(f"[{code}] {report[code]}", flush=True)
     usage = client.usage_log
     report["_usage"] = {"requests": len(usage), "prompt_tokens": sum(u.get("prompt_tokens", 0) for u in usage),
