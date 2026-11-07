@@ -50,6 +50,8 @@ def extract_links(text: str) -> set[str]:
         u = u.rstrip(".,;:!?")
         if "$" in u or "{{" in u:  # template literal (the regex stops at "{"), not a real link
             continue
+        if u.startswith(("http://www.w3.org/2000/svg", "http://www.w3.org/1999/xlink")):  # XML namespaces
+            continue
         out.add(u)
     return out
 
@@ -73,16 +75,20 @@ def fetch(url: str, method: str = "GET", timeout: int = 30) -> tuple[int, bytes]
         return -1, str(e).encode()
 
 
-def space_files(space: str) -> list[str]:
+def space_meta(space: str) -> dict:
     st, body = fetch(f"https://huggingface.co/api/spaces/{space}")
     if st != 200:
         raise SystemExit(f"FAIL: Space metadata not public ({st}): {space}")
-    return [s["rfilename"] for s in json.loads(body).get("siblings", [])]
+    return json.loads(body)
 
 
-def space_host(space: str) -> str:
-    owner, name = space.split("/")
-    return f"{owner}-{name}".lower().replace("_", "-").replace(".", "-") + ".hf.space"
+def space_host(meta: dict) -> str:
+    """The host the Space is served from, as the Hub reports it (a static Space is served from
+    <subdomain>.static.hf.space, not <subdomain>.hf.space)."""
+    host = urllib.parse.urlsplit(meta.get("host") or "").hostname
+    if not host:
+        raise SystemExit("FAIL: the Hub did not report a serving host for the Space")
+    return host.lower()
 
 
 def browser_check(url: str, host: str, shots: Path | None) -> list[str]:
@@ -111,7 +117,8 @@ def main() -> int:
 
     fails: list[str] = []
     links: set[str] = set()
-    files = space_files(args.space)
+    meta = space_meta(args.space)
+    files = [x["rfilename"] for x in meta.get("siblings", [])]
     for f in files:
         url = f"https://huggingface.co/spaces/{args.space}/resolve/main/{urllib.parse.quote(f)}"
         st, body = fetch(url)
@@ -124,7 +131,7 @@ def main() -> int:
         st, _ = fetch(u)
         if st != 200:
             fails.append(f"Hub link {u}: HTTP {st}")
-    host = space_host(args.space)
+    host = space_host(meta)
     if not args.no_browser:
         fails += browser_check(f"https://{host}/", host, Path(args.shots) if args.shots else None)
 

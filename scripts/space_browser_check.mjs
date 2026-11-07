@@ -39,12 +39,20 @@ try {
       if (!(await c.isVisible())) continue;
       const name = await c.getAttribute("data-check");
       await c.click();
-      await page.waitForLoadState("networkidle");
+      // waitForLoadState("networkidle") returns at once on a loaded page, before the task file
+      // fetched by this click arrives, so wait for the case panel to show the selected case.
+      const synced = await page.waitForFunction(() => {
+        const cur = document.querySelector("#tasks button[aria-current=true] .tid")?.textContent;
+        const head = (document.querySelector(".case-head h2")?.textContent || "").split(" ")[0];
+        return !cur || cur === head;
+      }, null, { timeout: 3000 }).then(() => true, () => false);
+      if (!synced) problems.push(`[${label}] control "${name}": case panel does not show the selected case after 3 s`);
       if ((await page.locator("[data-testid=episode]").count()) === 0)
         problems.push(`[${label}] control "${name}": no episode rendered`);
     }
     if (shots) {
       fs.mkdirSync(shots, { recursive: true });
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: `${shots}/${label}.png`, fullPage: true });
     }
     await ctx.close();

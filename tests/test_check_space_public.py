@@ -32,8 +32,9 @@ def test_lookalike_hosts_are_not_trusted_as_hf():
     assert csp.is_hf("https://cdn-lfs.huggingface.co/x")
 
 
-def test_space_host():
-    assert csp.space_host("JustEddy1/kataa-demo") == "justeddy1-kataa-demo.hf.space"
+def test_space_host_comes_from_the_hub_metadata():
+    meta = {"host": "https://justeddy1-kataa-demo.static.hf.space", "subdomain": "justeddy1-kataa-demo"}
+    assert csp.space_host(meta) == "justeddy1-kataa-demo.static.hf.space"
 
 
 def test_fetch_sends_no_credentials(monkeypatch):
